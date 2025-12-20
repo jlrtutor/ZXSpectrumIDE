@@ -49,6 +49,12 @@ public class ConfigManager {
      * Obtiene la configuración actual
      */
     public AppConfig getConfig() {
+        // Verificación de seguridad
+        if (config == null) {
+            System.err.println("ADVERTENCIA: config era null en getConfig(). Creando nueva configuración.");
+            config = new AppConfig();
+            saveConfig();
+        }
         return config;
     }
 
@@ -58,16 +64,32 @@ public class ConfigManager {
     private void loadConfig() {
         if (Files.exists(configPath)) {
             try (Reader reader = Files.newBufferedReader(configPath)) {
-                config = gson.fromJson(reader, AppConfig.class);
-                System.out.println("Configuración cargada desde: " + configPath);
+                AppConfig loadedConfig = gson.fromJson(reader, AppConfig.class);
+
+                // Verificar que la carga fue exitosa
+                if (loadedConfig != null) {
+                    config = loadedConfig;
+                    System.out.println("Configuración cargada desde: " + configPath);
+                } else {
+                    System.err.println("Error: archivo de configuración vacío o corrupto");
+                    config = new AppConfig();
+                    saveConfig(); // Guardar configuración por defecto
+                }
             } catch (IOException e) {
                 System.err.println("Error al cargar configuración: " + e.getMessage());
                 config = new AppConfig(); // Usar configuración por defecto
+                saveConfig(); // Guardar configuración por defecto
             }
         } else {
             System.out.println("Archivo de configuración no encontrado. Usando valores por defecto.");
             config = new AppConfig();
             saveConfig(); // Guardar la configuración por defecto
+        }
+
+        // IMPORTANTE: Verificación de seguridad
+        if (config == null) {
+            System.err.println("ADVERTENCIA: config es null después de loadConfig(). Creando configuración por defecto.");
+            config = new AppConfig();
         }
     }
 

@@ -1,0 +1,291 @@
+/*
+ * Tema Oscuro - Material Deep Ocean
+ * ZX Spectrum IDE
+ */
+
+/* ============================================
+   COLORES BASE
+   ============================================ */
+.root {
+    /* Colores principales */
+    -fx-base: #0F111A;
+    -fx-background: #0F111A;
+    -fx-control-inner-background: #1A1E2E;
+
+    /* Colores de texto */
+    -fx-text-base-color: #B0BEC5;
+    -fx-text-fill: #B0BEC5;
+
+    /* Acentos */
+    -fx-accent: #80CBC4;
+    -fx-focus-color: #80CBC4;
+    -fx-faint-focus-color: #80CBC444;
+
+    /* Bordes */
+    -fx-border-color: #1E2430;
+}
+
+/* ============================================
+   MENU BAR
+   ============================================ */
+.menu-bar {
+    -fx-background-color: #0F111A;
+    -fx-border-color: #1E2430;
+    -fx-border-width: 0 0 1 0;
+}
+
+.menu-bar .label {
+    -fx-text-fill: #B0BEC5;
+    -fx-font-size: 13px;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing {
+    -fx-background-color: #1A1E2E;
+}
+
+.menu-item {
+    -fx-background-color: #1A1E2E;
+}
+
+.menu-item:hover,
+.menu-item:focused {
+    -fx-background-color: #2C3E50;
+}
+
+.menu-item .label {
+    -fx-text-fill: #B0BEC5;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.button {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: #B0BEC5;
+    -fx-padding: 5 15 5 15;
+}
+
+.button:hover {
+    -fx-background-color: #2C3E50;
+    -fx-border-color: #80CBC4;
+}
+
+.button:pressed {
+    -fx-background-color: #34495E;
+}
+
+.button:focused {
+    -fx-border-color: #80CBC4;
+    -fx-border-width: 2;
+}
+
+/* ============================================
+   TEXT FIELDS
+   ============================================ */
+.text-field {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: #B0BEC5;
+    -fx-prompt-text-fill: #546E7A;
+}
+
+.text-field:focused {
+    -fx-border-color: #80CBC4;
+    -fx-border-width: 2;
+}
+
+.text-area {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+    -fx-text-fill: #B0BEC5;
+}
+
+.text-area:focused {
+    -fx-border-color: #80CBC4;
+}
+
+/* ============================================
+   LABELS
+   ============================================ */
+.label {
+    -fx-text-fill: #B0BEC5;
+}
+
+/* ============================================
+   TAB PANE
+   ============================================ */
+.tab-pane {
+    -fx-background-color: #0F111A;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: #0F111A;
+}
+
+.tab {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+    -fx-text-fill: #B0BEC5;
+}
+
+.tab:selected {
+    -fx-background-color: #2C3E50;
+    -fx-border-color: #80CBC4;
+}
+
+.tab:hover {
+    -fx-background-color: #34495E;
+}
+
+.tab .label {
+    -fx-text-fill: #B0BEC5;
+}
+
+/* ============================================
+   TREE VIEW / LIST VIEW
+   ============================================ */
+.tree-view,
+.list-view {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+}
+
+.tree-cell,
+.list-cell {
+    -fx-background-color: #1A1E2E;
+    -fx-text-fill: #B0BEC5;
+}
+
+.tree-cell:selected,
+.list-cell:selected {
+    -fx-background-color: #2C3E50;
+    -fx-text-fill: #ECEFF1;
+}
+
+.tree-cell:hover,
+.list-cell:hover {
+    -fx-background-color: #34495E;
+}
+
+/* ============================================
+   SCROLL BAR
+   ============================================ */
+.scroll-bar {
+    -fx-background-color: #0F111A;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #546E7A;
+    -fx-background-radius: 5px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #78909C;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: #0F111A;
+}
+
+/* ============================================
+   TOOLBAR
+   ============================================ */
+.tool-bar {
+    -fx-background-color: #0F111A;
+    -fx-border-color: #1E2430;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* ============================================
+   STATUS BAR (custom)
+   ============================================ */
+.status-bar {
+    -fx-background-color: #0F111A;
+    -fx-border-color: #1E2430;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 3 10 3 10;
+}
+
+/* ============================================
+   EDITOR (RichTextFX - styled-text-area)
+   ============================================ */
+.styled-text-area {
+    -fx-background-color: #0F111A;
+}
+
+.styled-text-area .text {
+    -fx-fill: #B0BEC5;
+    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-size: 14px;
+}
+
+.styled-text-area .paragraph-box:has-caret {
+    -fx-background-color: #1A1E2E;
+}
+
+/* Line numbers */
+.lineno {
+    -fx-background-color: #0F111A;
+    -fx-text-fill: #546E7A;
+    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-size: 13px;
+    -fx-padding: 0 5 0 5;
+}
+
+/* ============================================
+   SYNTAX HIGHLIGHTING - Z80 Assembly (Dark)
+   ============================================ */
+.keyword {
+    -fx-fill: #82AAFF;
+    -fx-font-weight: bold;
+}
+
+.register {
+    -fx-fill: #C792EA;
+}
+
+.number {
+    -fx-fill: #F78C6C;
+}
+
+.comment {
+    -fx-fill: #697098;
+    -fx-font-style: italic;
+}
+
+.string {
+    -fx-fill: #C3E88D;
+}
+
+.label {
+    -fx-fill: #FFCB6B;
+    -fx-font-weight: bold;
+}
+
+.directive {
+    -fx-fill: #89DDFF;
+}
+
+/* ============================================
+   TOOLTIPS
+   ============================================ */
+.tooltip {
+    -fx-background-color: #2C3E50;
+    -fx-text-fill: #ECEFF1;
+    -fx-border-color: #546E7A;
+    -fx-font-size: 12px;
+}
+
+/* ============================================
+   SEPARATORS
+   ============================================ */
+.separator {
+    -fx-background-color: #1E2430;
+}
