@@ -1,0 +1,193 @@
+# .gitignore para ZX Spectrum IDE
+# -------------------------------
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# IntelliJ - Workspace file
+.idea/workspace.xml
+
+# IntelliJ - Tasks
+.idea/tasks.xml
+
+# IntelliJ - Dictionaries
+.idea/dictionaries/
+
+# IntelliJ - Datasources
+.idea/dataSources/
+.idea/dataSources.ids
+.idea/dataSources.local.xml
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+
+# IntelliJ - User-specific configurations
+.idea/uiDesigner.xml
+.idea/dbnavigator.xml
+
+# Gradle (por si en el futuro se usa)
+.gradle/
+build/
+
+# ============================================
+# macOS
+# ============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# ZX Spectrum IDE - Archivos específicos
+# --------------------------------------
+
+# Configuración de usuario (se creará automáticamente)
+.zxide/
+config.json
+
+# Proyectos de usuario (no versionar proyectos de ejemplo)
+projects/
+examples/*/build/
+examples/*/*.tap
+examples/*/*.tzx
+examples/*/*.bin
+
+# Archivos compilados de ZX Spectrum
+*.tap
+*.tzx
+*.sna
+*.z80
+*.bin
+*.rom
+
+# Archivos generados por PASMO
+*.lst
+*.sym
+*.map
+
+# Backups automáticos del IDE
+*.bak
+*.backup
+*~
+
+# Archivos temporales del IDE
+.tmp/
+temp/
+tmp/
+
+# Caché del IDE
+.cache/
+cache/
+
+# Archivos de índice
+.index/
+index/
+
+
+# Recursos temporales
+# -------------------
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Datos de testing
+# ----------------
+test-output/
+*.test
+
+
+# Dependencias descargadas (gestionadas por Maven)
+# ------------------------------------------------
+lib/
+libs/
+
+
+# Archivos de configuración local
+# -------------------------------
+local.properties
+*.local
+
+
+# Archivos grandes (assets de ejemplo)
+# ------------------------------------
+# Descomentar si los assets son muy grandes
+# *.png
+# *.jpg
+# *.wav
+# *.mp3
+
+# Sí se permiten iconos pequeños del IDE
+!src/main/resources/**/icons/*.png
+!src/main/resources/**/icons/*.jpg
+
+# Documentación generada
+# ----------------------
+docs/api/
+javadoc/
+
+
+# Archivos de distribución
+# ------------------------
+dist/
+release/
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.exe
+*.msi
+
+
+# Otros
+# -----
+*.orig
+*.rej
+.metadata
