@@ -15,6 +15,7 @@
     /* Colores de texto */
     -fx-text-base-color: #B0BEC5;
     -fx-text-fill: #B0BEC5;
+    -fx-text-background-color: #0F111A;
 
     /* Acentos */
     -fx-accent: #80CBC4;
@@ -288,4 +289,13 @@
    ============================================ */
 .separator {
     -fx-background-color: #1E2430;
+}
+
+/* ============================================
+   CODE EDITOR PLACEHOLDER
+   ============================================ */
+.code-placeholder {
+    -fx-text-fill: #546E7A;
+    -fx-font-style: italic;
+    -fx-opacity: 0.6;
 }

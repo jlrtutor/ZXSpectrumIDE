@@ -1,8 +1,11 @@
 package com.lazyzxsoftware.zxspectrumide;
 
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
+import com.lazyzxsoftware.zxspectrumide.editor.CodeEditor;
+import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -11,12 +14,16 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 
+import java.io.IOException;
+
 public class Main extends Application {
 
     private Stage primaryStage;
     private ThemeManager themeManager;
     private ConfigManager configManager;
+    private I18nManager i18nManager;
     private Label statusLabel;
+    private CodeEditor codeEditor;
 
     @Override
     public void start(Stage primaryStage) {
@@ -24,10 +31,14 @@ public class Main extends Application {
 
         // Inicializar managers
         configManager = ConfigManager.getInstance();
+        i18nManager = I18nManager.getInstance();
         themeManager = ThemeManager.getInstance();
 
         // Configuración de la ventana principal
-        primaryStage.setTitle("ZX Spectrum IDE - v0.0.1");
+        primaryStage.setTitle(i18nManager.get("app.title"));
+
+        // Hacer la ventana invisible inicialmente para evitar parpadeo
+        primaryStage.setOpacity(0);
 
         // Layout principal
         BorderPane root = new BorderPane();
@@ -36,10 +47,9 @@ public class Main extends Application {
         MenuBar menuBar = createMenuBar();
         root.setTop(menuBar);
 
-        // Área central (temporal)
-        Label placeholder = new Label("ZX Spectrum IDE");
-        placeholder.setStyle("-fx-font-size: 32px; -fx-opacity: 0.5;");
-        root.setCenter(placeholder);
+        // Área central - Editor de código
+        codeEditor = new CodeEditor();
+        root.setCenter(codeEditor);
 
         // Barra de estado
         HBox statusBar = createStatusBar();
@@ -48,18 +58,26 @@ public class Main extends Application {
         // Crear la escena
         Scene scene = new Scene(root, 1200, 800);
 
+        // Aplicar a la ventana
+        primaryStage.setScene(scene);
+
         // Registrar escena en ThemeManager y aplicar tema
         themeManager.registerScene(scene);
 
-        // Aplicar a la ventana
-        primaryStage.setScene(scene);
+        // Mostrar ventana (todavía invisible)
         primaryStage.show();
 
-        // Actualizar estado
-        updateStatus("Listo");
+        // Hacer visible después de que todo esté renderizado
+        Platform.runLater(() -> {
+            primaryStage.setOpacity(1);
+        });
 
-        System.out.println("ZX Spectrum IDE iniciado correctamente");
-        System.out.println("Tema actual: " + themeManager.getCurrentTheme().getDisplayName());
+        // Actualizar estado
+        updateStatus(i18nManager.get("app.ready"));
+
+        System.out.println(i18nManager.get("message.ide_started"));
+        System.out.println(i18nManager.get("message.current_theme",
+                themeManager.getCurrentTheme().getDisplayName()));
     }
 
     private MenuBar createMenuBar() {
@@ -68,20 +86,35 @@ public class Main extends Application {
         // ============================================
         // MENÚ ARCHIVO
         // ============================================
-        Menu menuFile = new Menu("Archivo");
+        Menu menuFile = new Menu(i18nManager.get("menu.file"));
 
-        MenuItem newProject = new MenuItem("Nuevo Proyecto...");
-        newProject.setOnAction(e -> showAlert("Nuevo Proyecto", "Funcionalidad en desarrollo"));
+        MenuItem newProject = new MenuItem(i18nManager.get("menu.file.new_project"));
+        newProject.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.new_project.title"),
+                i18nManager.get("dialog.new_project.message")
+        ));
 
-        MenuItem openProject = new MenuItem("Abrir Proyecto...");
-        openProject.setOnAction(e -> showAlert("Abrir Proyecto", "Funcionalidad en desarrollo"));
+        MenuItem openProject = new MenuItem(i18nManager.get("menu.file.open_project"));
+        openProject.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.open_project.title"),
+                i18nManager.get("dialog.open_project.message")
+        ));
 
-        MenuItem saveFile = new MenuItem("Guardar");
-        saveFile.setOnAction(e -> updateStatus("Archivo guardado"));
+        MenuItem saveFile = new MenuItem(i18nManager.get("menu.file.save"));
+        saveFile.setOnAction(e -> {
+            if (codeEditor != null) {
+                try {
+                    codeEditor.saveFile();
+                    updateStatus(i18nManager.get("status.file_saved"));
+                } catch (IOException ex) {
+                    showAlert("Error", "No se pudo guardar el archivo: " + ex.getMessage());
+                }
+            }
+        });
 
-        MenuItem saveAsFile = new MenuItem("Guardar como...");
+        MenuItem saveAsFile = new MenuItem(i18nManager.get("menu.file.save_as"));
 
-        MenuItem exit = new MenuItem("Salir");
+        MenuItem exit = new MenuItem(i18nManager.get("menu.file.exit"));
         exit.setOnAction(e -> {
             System.out.println("Cerrando ZX Spectrum IDE...");
             primaryStage.close();
@@ -100,20 +133,47 @@ public class Main extends Application {
         // ============================================
         // MENÚ EDITAR
         // ============================================
-        Menu menuEdit = new Menu("Editar");
+        Menu menuEdit = new Menu(i18nManager.get("menu.edit"));
 
-        MenuItem undo = new MenuItem("Deshacer");
-        undo.setOnAction(e -> updateStatus("Deshacer"));
+        MenuItem undo = new MenuItem(i18nManager.get("menu.edit.undo"));
+        undo.setOnAction(e -> {
+            if (codeEditor != null && codeEditor.canUndo()) {
+                codeEditor.undo();
+                updateStatus(i18nManager.get("menu.edit.undo"));
+            }
+        });
 
-        MenuItem redo = new MenuItem("Rehacer");
-        redo.setOnAction(e -> updateStatus("Rehacer"));
+        MenuItem redo = new MenuItem(i18nManager.get("menu.edit.redo"));
+        redo.setOnAction(e -> {
+            if (codeEditor != null && codeEditor.canRedo()) {
+                codeEditor.redo();
+                updateStatus(i18nManager.get("menu.edit.redo"));
+            }
+        });
 
-        MenuItem cut = new MenuItem("Cortar");
-        MenuItem copy = new MenuItem("Copiar");
-        MenuItem paste = new MenuItem("Pegar");
+        MenuItem cut = new MenuItem(i18nManager.get("menu.edit.cut"));
+        cut.setOnAction(e -> {
+            if (codeEditor != null) {
+                codeEditor.cut();
+            }
+        });
 
-        MenuItem find = new MenuItem("Buscar...");
-        MenuItem replace = new MenuItem("Reemplazar...");
+        MenuItem copy = new MenuItem(i18nManager.get("menu.edit.copy"));
+        copy.setOnAction(e -> {
+            if (codeEditor != null) {
+                codeEditor.copy();
+            }
+        });
+
+        MenuItem paste = new MenuItem(i18nManager.get("menu.edit.paste"));
+        paste.setOnAction(e -> {
+            if (codeEditor != null) {
+                codeEditor.paste();
+            }
+        });
+
+        MenuItem find = new MenuItem(i18nManager.get("menu.edit.find"));
+        MenuItem replace = new MenuItem(i18nManager.get("menu.edit.replace"));
 
         menuEdit.getItems().addAll(
                 undo,
@@ -130,10 +190,10 @@ public class Main extends Application {
         // ============================================
         // MENÚ VER
         // ============================================
-        Menu menuView = new Menu("Ver");
+        Menu menuView = new Menu(i18nManager.get("menu.view"));
 
         // Submenú de temas
-        Menu themeMenu = new Menu("Tema");
+        Menu themeMenu = new Menu(i18nManager.get("menu.view.theme"));
         ToggleGroup themeGroup = new ToggleGroup();
 
         for (ThemeManager.Theme theme : themeManager.getAvailableThemes()) {
@@ -142,28 +202,37 @@ public class Main extends Application {
             themeItem.setSelected(theme == themeManager.getCurrentTheme());
             themeItem.setOnAction(e -> {
                 themeManager.setTheme(theme);
-                updateStatus("Tema cambiado a: " + theme.getDisplayName());
+                updateStatus(i18nManager.get("theme.changed", theme.getDisplayName()));
+                updateStatusBar(); // Actualizar barra de estado
             });
             themeMenu.getItems().add(themeItem);
         }
 
-        MenuItem toggleTheme = new MenuItem("Alternar Tema");
+        MenuItem toggleTheme = new MenuItem(i18nManager.get("menu.view.toggle_theme"));
         toggleTheme.setOnAction(e -> {
             themeManager.toggleTheme();
-            updateStatus("Tema alternado");
-            // Actualizar radio buttons
+            updateStatus(i18nManager.get("theme.changed",
+                    themeManager.getCurrentTheme().getDisplayName()));
             updateThemeRadioButtons(themeGroup);
+            updateStatusBar();
         });
 
-        CheckMenuItem showLineNumbers = new CheckMenuItem("Mostrar números de línea");
+        CheckMenuItem showLineNumbers = new CheckMenuItem(
+                i18nManager.get("menu.view.show_line_numbers")
+        );
         showLineNumbers.setSelected(configManager.getConfig().isShowLineNumbers());
         showLineNumbers.setOnAction(e -> {
             configManager.getConfig().setShowLineNumbers(showLineNumbers.isSelected());
             configManager.saveConfig();
-            updateStatus("Números de línea: " + (showLineNumbers.isSelected() ? "activados" : "desactivados"));
+            updateStatus(showLineNumbers.isSelected() ?
+                    i18nManager.get("status.line_numbers.enabled") :
+                    i18nManager.get("status.line_numbers.disabled")
+            );
         });
 
-        CheckMenuItem showWhitespace = new CheckMenuItem("Mostrar espacios en blanco");
+        CheckMenuItem showWhitespace = new CheckMenuItem(
+                i18nManager.get("menu.view.show_whitespace")
+        );
         showWhitespace.setSelected(configManager.getConfig().isShowWhitespace());
         showWhitespace.setOnAction(e -> {
             configManager.getConfig().setShowWhitespace(showWhitespace.isSelected());
@@ -181,28 +250,43 @@ public class Main extends Application {
         // ============================================
         // MENÚ HERRAMIENTAS
         // ============================================
-        Menu menuTools = new Menu("Herramientas");
+        Menu menuTools = new Menu(i18nManager.get("menu.tools"));
 
-        MenuItem compile = new MenuItem("Compilar (F5)");
+        MenuItem compile = new MenuItem(i18nManager.get("menu.tools.compile"));
         compile.setOnAction(e -> {
-            updateStatus("Compilando...");
-            showAlert("Compilar", "PASMO no configurado todavía");
+            updateStatus(i18nManager.get("app.compiling"));
+            showAlert(
+                    i18nManager.get("dialog.compile.title"),
+                    i18nManager.get("dialog.compile.message")
+            );
         });
 
-        MenuItem run = new MenuItem("Ejecutar (F6)");
+        MenuItem run = new MenuItem(i18nManager.get("menu.tools.run"));
         run.setOnAction(e -> {
-            updateStatus("Ejecutando...");
-            showAlert("Ejecutar", "ZEsarUX no configurado todavía");
+            updateStatus(i18nManager.get("app.running"));
+            showAlert(
+                    i18nManager.get("dialog.run.title"),
+                    i18nManager.get("dialog.run.message")
+            );
         });
 
-        MenuItem spriteEditor = new MenuItem("Editor de Sprites");
-        spriteEditor.setOnAction(e -> showAlert("Editor de Sprites", "Funcionalidad en desarrollo"));
+        MenuItem spriteEditor = new MenuItem(i18nManager.get("menu.tools.sprite_editor"));
+        spriteEditor.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.sprite_editor.title"),
+                i18nManager.get("dialog.sprite_editor.message")
+        ));
 
-        MenuItem mapEditor = new MenuItem("Editor de Mapas");
-        mapEditor.setOnAction(e -> showAlert("Editor de Mapas", "Funcionalidad en desarrollo"));
+        MenuItem mapEditor = new MenuItem(i18nManager.get("menu.tools.map_editor"));
+        mapEditor.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.map_editor.title"),
+                i18nManager.get("dialog.map_editor.message")
+        ));
 
-        MenuItem musicEditor = new MenuItem("Editor de Música");
-        musicEditor.setOnAction(e -> showAlert("Editor de Música", "Funcionalidad en desarrollo"));
+        MenuItem musicEditor = new MenuItem(i18nManager.get("menu.tools.music_editor"));
+        musicEditor.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.music_editor.title"),
+                i18nManager.get("dialog.music_editor.message")
+        ));
 
         menuTools.getItems().addAll(
                 compile,
@@ -216,22 +300,43 @@ public class Main extends Application {
         // ============================================
         // MENÚ CONFIGURACIÓN
         // ============================================
-        Menu menuSettings = new Menu("Configuración");
+        Menu menuSettings = new Menu(i18nManager.get("menu.settings"));
 
-        MenuItem preferences = new MenuItem("Preferencias...");
-        preferences.setOnAction(e -> showAlert("Preferencias", "Panel de configuración en desarrollo"));
+        MenuItem preferences = new MenuItem(i18nManager.get("menu.settings.preferences"));
+        preferences.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.preferences.title"),
+                i18nManager.get("dialog.preferences.message")
+        ));
 
-        menuSettings.getItems().add(preferences);
+        // Submenú de idiomas
+        Menu languageMenu = new Menu(i18nManager.get("menu.settings.language"));
+        ToggleGroup languageGroup = new ToggleGroup();
+
+        for (I18nManager.Language lang : i18nManager.getAvailableLanguages()) {
+            RadioMenuItem langItem = new RadioMenuItem(lang.getDisplayName());
+            langItem.setToggleGroup(languageGroup);
+            langItem.setSelected(lang == i18nManager.getCurrentLanguage());
+            langItem.setOnAction(e -> {
+                i18nManager.loadLanguage(lang);
+                showAlert("Idioma", "Reinicia la aplicación para aplicar el cambio de idioma.");
+            });
+            languageMenu.getItems().add(langItem);
+        }
+
+        menuSettings.getItems().addAll(preferences, languageMenu);
 
         // ============================================
         // MENÚ AYUDA
         // ============================================
-        Menu menuHelp = new Menu("Ayuda");
+        Menu menuHelp = new Menu(i18nManager.get("menu.help"));
 
-        MenuItem documentation = new MenuItem("Documentación");
-        documentation.setOnAction(e -> showAlert("Documentación", "Ver README.md y TODO.md en el repositorio"));
+        MenuItem documentation = new MenuItem(i18nManager.get("menu.help.documentation"));
+        documentation.setOnAction(e -> showAlert(
+                i18nManager.get("dialog.documentation.title"),
+                i18nManager.get("dialog.documentation.message")
+        ));
 
-        MenuItem about = new MenuItem("Acerca de...");
+        MenuItem about = new MenuItem(i18nManager.get("menu.help.about"));
         about.setOnAction(e -> showAboutDialog());
 
         menuHelp.getItems().addAll(documentation, about);
@@ -246,23 +351,38 @@ public class Main extends Application {
         statusBar.getStyleClass().add("status-bar");
         statusBar.setPadding(new Insets(5, 10, 5, 10));
 
-        statusLabel = new Label("Listo");
+        statusLabel = new Label(i18nManager.get("app.ready"));
         statusLabel.setStyle("-fx-font-size: 12px;");
-
-        // Información adicional
-        Label themeLabel = new Label("Tema: " + themeManager.getCurrentTheme().getDisplayName());
-        themeLabel.setStyle("-fx-font-size: 12px; -fx-opacity: 0.7;");
-
-        Label configLabel = new Label("Tab: " + configManager.getConfig().getTabSize() + " espacios");
-        configLabel.setStyle("-fx-font-size: 12px; -fx-opacity: 0.7;");
 
         // Spacer
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        statusBar.getChildren().addAll(statusLabel, spacer, themeLabel, configLabel);
+        statusBar.getChildren().addAll(statusLabel, spacer);
 
         return statusBar;
+    }
+
+    private void updateStatusBar() {
+        // Recrear la barra de estado con información actualizada
+        HBox statusBar = (HBox) ((BorderPane) primaryStage.getScene().getRoot()).getBottom();
+        statusBar.getChildren().clear();
+
+        statusLabel = new Label(statusLabel.getText());
+        statusLabel.setStyle("-fx-font-size: 12px;");
+
+        Label themeLabel = new Label(i18nManager.get("status.theme",
+                themeManager.getCurrentTheme().getDisplayName()));
+        themeLabel.setStyle("-fx-font-size: 12px; -fx-opacity: 0.7;");
+
+        Label configLabel = new Label(i18nManager.get("status.tab_size",
+                configManager.getConfig().getTabSize()));
+        configLabel.setStyle("-fx-font-size: 12px; -fx-opacity: 0.7;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        statusBar.getChildren().addAll(statusLabel, spacer, themeLabel, configLabel);
     }
 
     private void updateStatus(String message) {
@@ -273,7 +393,6 @@ public class Main extends Application {
     }
 
     private void updateThemeRadioButtons(ToggleGroup group) {
-        // Actualizar la selección de los radio buttons después de cambiar tema
         for (Toggle toggle : group.getToggles()) {
             RadioMenuItem item = (RadioMenuItem) toggle;
             for (ThemeManager.Theme theme : themeManager.getAvailableThemes()) {
@@ -290,7 +409,6 @@ public class Main extends Application {
         alert.setHeaderText(null);
         alert.setContentText(message);
 
-        // Aplicar tema al diálogo
         DialogPane dialogPane = alert.getDialogPane();
         themeManager.registerScene(dialogPane.getScene());
 
@@ -299,21 +417,10 @@ public class Main extends Application {
 
     private void showAboutDialog() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Acerca de ZX Spectrum IDE");
-        alert.setHeaderText("ZX Spectrum IDE v0.0.1");
-        alert.setContentText(
-                "IDE moderno para desarrollo de juegos ZX Spectrum\n\n" +
-                        "Desarrollado por: Lazy ZX Software\n" +
-                        "Licencia: Apache 2.0\n" +
-                        "GitHub: https://github.com/jlrtutor/ZXSpectrumIDE\n\n" +
-                        "Tecnologías:\n" +
-                        "- Java 17\n" +
-                        "- JavaFX 21\n" +
-                        "- RichTextFX\n\n" +
-                        "© 2024 Lazy ZX Software"
-        );
+        alert.setTitle(i18nManager.get("dialog.about.title"));
+        alert.setHeaderText(i18nManager.get("dialog.about.header"));
+        alert.setContentText(i18nManager.get("dialog.about.content"));
 
-        // Aplicar tema al diálogo
         DialogPane dialogPane = alert.getDialogPane();
         themeManager.registerScene(dialogPane.getScene());
 
@@ -322,9 +429,8 @@ public class Main extends Application {
 
     @Override
     public void stop() {
-        // Guardar configuración al cerrar
         configManager.saveConfig();
-        System.out.println("Configuración guardada. ZX Spectrum IDE cerrado.");
+        System.out.println(i18nManager.get("message.config_saved"));
     }
 
     public static void main(String[] args) {

@@ -7,7 +7,7 @@
 ## 1. EDITOR DE CÓDIGO Z80 ASSEMBLY
 
 ### 1.1 Editor de Texto Base
-- [ ] Implementar área de texto con RichTextFX
+- [x] Implementar área de texto con RichTextFX
 - [ ] Sistema de pestañas para múltiples archivos
 - [ ] Guardar/Abrir archivos .asm
 - [ ] Soporte para codificación de texto (UTF-8)
@@ -626,6 +626,18 @@
 
 ---
 
+## 10. Bugs
+🐛 BUG - Parpadeo en macOS al iniciar
+- La ventana hace "flick" al arrancar y al primer clic
+- Específico de macOS + JavaFX (?)
+- Posibles soluciones a investigar:
+    * Native macOS rendering settings
+    * Prism rendering engine configuration
+    * Timing de aplicación de CSS
+- Prioridad: BAJA (no afecta funcionalidad)
+
+---
+
 ## NOTAS DE IMPLEMENTACIÓN
 
 ### Prioridades de Desarrollo
@@ -667,5 +679,5 @@
 
 ---
 
-**Versión**: 0.0.1  
+**Versión**: 0.0.2  
 **Última actualización**: Diciembre 2025

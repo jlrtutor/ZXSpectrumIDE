@@ -21,4 +21,7 @@ module com.lazyzxsoftware.zxspectrumide {
     // Opens para Gson (acceso reflectivo)
     opens com.lazyzxsoftware.zxspectrumide.config to com.google.gson;
     opens com.lazyzxsoftware.zxspectrumide to javafx.fxml;
+
+    // Opens para i18n (ResourceBundle)
+    opens com.lazyzxsoftware.zxspectrumide.i18n;
 }
