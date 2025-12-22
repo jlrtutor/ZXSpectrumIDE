@@ -42,36 +42,27 @@ public class Main extends Application {
         // Inicializar en background
         Platform.runLater(() -> {
             try {
+                // --- Bloque limpio sin sleeps ---
                 splash.updateStatus("Cargando configuración...");
-                Thread.sleep(300);
-
                 configManager = ConfigManager.getInstance();
 
                 splash.updateStatus("Cargando idioma...");
-                Thread.sleep(300);
                 i18nManager = I18nManager.getInstance();
 
                 splash.updateStatus("Cargando temas...");
-                Thread.sleep(300);
                 themeManager = ThemeManager.getInstance();
 
                 splash.updateStatus("Inicializando gestor de archivos...");
-                Thread.sleep(300);
                 fileManager = new FileManager(primaryStage);
 
                 primaryStage.setTitle(i18nManager.get("app.title"));
-
                 BorderPane root = new BorderPane();
 
                 splash.updateStatus("Creando interfaz...");
-                Thread.sleep(300);
-
                 MenuBar menuBar = createMenuBar();
                 root.setTop(menuBar);
 
                 splash.updateStatus("Inicializando editor...");
-                Thread.sleep(400);
-
                 codeEditor = new CodeEditor();
                 codeEditor.setOnModifiedChanged(this::updateWindowTitle);
                 root.setCenter(codeEditor);
@@ -83,18 +74,9 @@ public class Main extends Application {
                 primaryStage.setScene(scene);
 
                 splash.updateStatus("Aplicando tema...");
-                Thread.sleep(300);
-
                 themeManager.registerScene(scene);
 
-                splash.updateStatus("Finalizando...");
-                Thread.sleep(300);
-
                 updateStatus(i18nManager.get("app.ready"));
-
-                System.out.println(i18nManager.get("message.ide_started"));
-                System.out.println(i18nManager.get("message.current_theme",
-                        themeManager.getCurrentTheme().getDisplayName()));
 
                 // Cerrar splash y mostrar ventana principal
                 splash.close(() -> {
@@ -102,7 +84,7 @@ public class Main extends Application {
                     updateWindowTitle();
                 });
 
-            } catch (InterruptedException e) {
+            } catch (Exception e) { // Cambia InterruptedException por Exception
                 e.printStackTrace();
                 splash.close(() -> primaryStage.show());
             }

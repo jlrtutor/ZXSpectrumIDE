@@ -85,48 +85,31 @@ public class Z80Lexer {
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
 
-        // TODO: Detectar tema actual dinámicamente
-        boolean isDark = true;
-
         while (matcher.find()) {
-            String inlineStyle = null;
+            String styleClass = null;
 
             if (matcher.group("COMMENT") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #697098; -fx-font-style: italic;" :
-                        "-fx-fill: #8C8C8C; -fx-font-style: italic;";
+                styleClass = "comment";
             } else if (matcher.group("STRING") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #C3E88D;" :
-                        "-fx-fill: #067D17;";
+                styleClass = "string";
             } else if (matcher.group("DIRECTIVE") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #89DDFF; -fx-font-weight: bold;" :
-                        "-fx-fill: #9E880D; -fx-font-weight: bold;";
+                styleClass = "directive";
             } else if (matcher.group("INSTRUCTION") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #82AAFF; -fx-font-weight: bold;" :
-                        "-fx-fill: #0033B3; -fx-font-weight: bold;";
+                styleClass = "keyword"; // Usamos 'keyword' para instrucciones
             } else if (matcher.group("REGISTER") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #C792EA;" :
-                        "-fx-fill: #871094;";
+                styleClass = "register";
             } else if (matcher.group("NUMBER") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #F78C6C;" :
-                        "-fx-fill: #1750EB;";
+                styleClass = "number";
             } else if (matcher.group("LABEL") != null) {
-                inlineStyle = isDark ?
-                        "-fx-fill: #FFCB6B; -fx-font-weight: bold;" :
-                        "-fx-fill: #000000; -fx-font-weight: bold;";
+                styleClass = "label";
             }
 
-            // Añadir texto sin estilo antes del match
+            // 1. Añadir texto sin estilo antes del match
             spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
 
-            // Añadir el texto con estilo inline
-            if (inlineStyle != null) {
-                spansBuilder.add(Collections.singleton(inlineStyle), matcher.end() - matcher.start());
+            // 2. Añadir el estilo (Clase CSS) si existe
+            if (styleClass != null) {
+                spansBuilder.add(Collections.singleton(styleClass), matcher.end() - matcher.start());
             } else {
                 spansBuilder.add(Collections.emptyList(), matcher.end() - matcher.start());
             }

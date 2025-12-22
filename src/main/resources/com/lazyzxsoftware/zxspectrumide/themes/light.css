@@ -68,6 +68,7 @@
     -fx-background-radius: 3px;
     -fx-text-fill: #000000;
     -fx-padding: 5 15 5 15;
+    -fx-min-width: -fx-pref-width;
 }
 
 .button:hover {
@@ -82,6 +83,11 @@
 .button:focused {
     -fx-border-color: #4A90E2;
     -fx-border-width: 2;
+}
+
+/* Corrección específica para botones en diálogos (Alertas) */
+.dialog-pane .button {
+    -fx-min-width: 80px; /* Fuerza un ancho mínimo de 80px */
 }
 
 /* ============================================
@@ -242,36 +248,38 @@
 
 /* ============================================
    SYNTAX HIGHLIGHTING - Z80 Assembly
+   (Añadimos .styled-text-area para ganar especificidad sobre el color base)
    ============================================ */
-.keyword {
+.styled-text-area .keyword {
     -fx-fill: #0033B3;
     -fx-font-weight: bold;
 }
 
-.register {
+.styled-text-area .register {
     -fx-fill: #871094;
 }
 
-.number {
+.styled-text-area .number {
     -fx-fill: #1750EB;
 }
 
-.comment {
+.styled-text-area .comment {
     -fx-fill: #8C8C8C;
     -fx-font-style: italic;
 }
 
-.string {
+.styled-text-area .string {
     -fx-fill: #067D17;
 }
 
-.label {
+.styled-text-area .label {
     -fx-fill: #000000;
     -fx-font-weight: bold;
 }
 
-.directive {
+.styled-text-area .directive {
     -fx-fill: #9E880D;
+    -fx-font-weight: bold;
 }
 
 /* ============================================

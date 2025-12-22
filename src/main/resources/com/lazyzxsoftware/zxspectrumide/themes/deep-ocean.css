@@ -68,6 +68,7 @@
     -fx-background-radius: 3px;
     -fx-text-fill: #B0BEC5;
     -fx-padding: 5 15 5 15;
+    -fx-min-width: -fx-pref-width;
 }
 
 .button:hover {
@@ -83,6 +84,12 @@
     -fx-border-color: #80CBC4;
     -fx-border-width: 2;
 }
+
+/* Corrección específica para botones en diálogos (Alertas) */
+.dialog-pane .button {
+    -fx-min-width: 80px; /* Fuerza un ancho mínimo de 80px */
+}
+
 
 /* ============================================
    TEXT FIELDS
@@ -243,35 +250,36 @@
 /* ============================================
    SYNTAX HIGHLIGHTING - Z80 Assembly (Dark)
    ============================================ */
-.keyword {
+.styled-text-area .keyword {
     -fx-fill: #82AAFF;
     -fx-font-weight: bold;
 }
 
-.register {
+.styled-text-area .register {
     -fx-fill: #C792EA;
 }
 
-.number {
+.styled-text-area .number {
     -fx-fill: #F78C6C;
 }
 
-.comment {
+.styled-text-area .comment {
     -fx-fill: #697098;
     -fx-font-style: italic;
 }
 
-.string {
+.styled-text-area .string {
     -fx-fill: #C3E88D;
 }
 
-.label {
+.styled-text-area .label {
     -fx-fill: #FFCB6B;
     -fx-font-weight: bold;
 }
 
-.directive {
+.styled-text-area .directive {
     -fx-fill: #89DDFF;
+    -fx-font-weight: bold;
 }
 
 /* ============================================
