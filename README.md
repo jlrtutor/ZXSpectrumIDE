@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.0.3--alpha-blue)
+![Version](https://img.shields.io/badge/version-0.0.4--alpha-blue)
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21-green)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
@@ -73,9 +73,10 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 
 ### En Progreso
 
+- [x] Resaltado de sintaxis Z80
+- [x] Tabs múltiples ficheros
 - [ ] ThemeManager y archivos CSS
 - [ ] Editor de código básico
-- [ ] Resaltado de sintaxis Z80
 - [ ] Integración con PASMO
 
 ### Planificado
@@ -135,42 +136,6 @@ mvn javafx:run
 O desde IntelliJ IDEA:
 1. Abrir el proyecto
 2. Ejecutar la clase `Main.java`
-
----
-
-## 📂 Estructura del Proyecto
-
-```
-ZXSpectrumIDE/
-├── 📄 pom.xml                          # Configuración Maven
-├── 📄 README.md                        # Este archivo
-├── 📄 TODO.md                          # Lista de tareas
-├── 📄 PROGRESS.md                      # Progreso del desarrollo
-├── 📁 src/
-│   └── 📁 main/
-│       ├── 📁 java/com/lazyzxsoftware/zxspectrumide/
-│       │   ├── 📄 Main.java            # Clase principal
-│       │   ├── 📁 config/              # Sistema de configuración
-│       │   │   ├── 📄 AppConfig.java
-│       │   │   └── 📄 ConfigManager.java
-│       │   ├── 📁 theme/               # Gestión de temas
-│       │   ├── 📁 i18n/                # Internacionalización
-│       │   ├── 📁 editor/              # Editor de código
-│       │   ├── 📁 sprites/             # Editor de sprites
-│       │   ├── 📁 maps/                # Editor de mapas
-│       │   ├── 📁 music/               # Editor de música
-│       │   ├── 📁 compiler/            # Integración PASMO
-│       │   ├── 📁 emulator/            # Integración ZEsarUX
-│       │   └── 📁 utils/               # Utilidades
-│       └── 📁 resources/
-│           └── 📁 com/lazyzxsoftware/zxspectrumide/
-│               ├── 📁 themes/          # Archivos CSS
-│               ├── 📁 i18n/            # Archivos de traducción
-│               ├── 📁 config/          # Configuración por defecto
-│               └── 📁 icons/           # Iconos del IDE
-└── 📁 .zxide/                          # Datos de usuario (generado)
-    └── 📄 config.json                  # Configuración persistente
-```
 
 ---
 
@@ -245,8 +210,8 @@ mensaje:
 - [ ] Sistema de internacionalización
 
 ### Fase 1: Editor de Código
-- [ ] Editor básico con RichTextFX
-- [ ] Resaltado de sintaxis Z80
+- [x] Editor básico con RichTextFX
+- [x] Resaltado de sintaxis Z80
 - [ ] Autocompletado
 - [ ] Navegación de código
 

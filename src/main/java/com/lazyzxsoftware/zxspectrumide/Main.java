@@ -28,7 +28,7 @@ public class Main extends Application {
     private ConfigManager configManager;
     private I18nManager i18nManager;
     private Label statusLabel;
-    private CodeEditor codeEditor;
+    private TabPane tabPane;
     private FileManager fileManager;
 
     @Override
@@ -62,10 +62,23 @@ public class Main extends Application {
                 MenuBar menuBar = createMenuBar();
                 root.setTop(menuBar);
 
-                splash.updateStatus("Inicializando editor...");
-                codeEditor = new CodeEditor();
-                codeEditor.setOnModifiedChanged(this::updateWindowTitle);
-                root.setCenter(codeEditor);
+                splash.updateStatus("Inicializando sistema de pestañas...");
+
+                // Inicializar TabPane
+                tabPane = new TabPane();
+                // Opcional: Para cerrar pestañas con Ctrl+W, etc.
+                tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+
+                // IMPORTANTE: Actualizar título y estado al cambiar de pestaña
+                tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                    updateWindowTitle();
+                    // Opcional: actualizar barra de estado si tuviera info específica de la pestaña
+                });
+
+                root.setCenter(tabPane);
+
+                // Abrir una pestaña vacía por defecto al iniciar
+                createNewTab(null);
 
                 HBox statusBar = createStatusBar();
                 root.setBottom(statusBar);
@@ -78,6 +91,15 @@ public class Main extends Application {
 
                 updateStatus(i18nManager.get("app.ready"));
 
+                primaryStage.setOnCloseRequest(e -> {
+                    handleAppClose();
+                    // Si la ventana sigue abierta es que se canceló, consumimos el evento si es necesario
+                    // Pero como handleAppClose llama a close() explícitamente si todo va bien,
+                    // aquí solo necesitamos prevenir el cierre por defecto si se canceló.
+                    // Una forma más simple es:
+                    // e.consume(); handleAppClose();
+                });
+
                 // Cerrar splash y mostrar ventana principal
                 splash.close(() -> {
                     primaryStage.show();
@@ -89,6 +111,52 @@ public class Main extends Application {
                 splash.close(() -> primaryStage.show());
             }
         });
+    }
+
+    private void createNewTab(File file) {
+        CodeEditor editor = new CodeEditor();
+        String title = (file != null) ? file.getName() : i18nManager.get("file.untitled");
+        Tab tab = new Tab(title);
+
+        // Asignar el editor al contenido de la pestaña
+        tab.setContent(editor);
+
+        // Listener para el asterisco de modificado
+        editor.setOnModifiedChanged(() -> {
+            String currentTitle = (editor.getCurrentFile() != null)
+                    ? editor.getCurrentFile().getName()
+                    : i18nManager.get("file.untitled");
+
+            if (editor.isModified()) {
+                tab.setText(currentTitle + "*");
+            } else {
+                tab.setText(currentTitle);
+            }
+            updateWindowTitle(); // Actualizar título global también
+        });
+
+        // Gestión del cierre de la pestaña individual
+        tab.setOnCloseRequest(e -> {
+            // Si hay cambios sin guardar, preguntamos. Si cancela, consumimos el evento (no cierra).
+            if (!checkUnsavedChanges(editor)) {
+                e.consume();
+            }
+        });
+
+        // Si es un archivo existente, lo abrimos
+        if (file != null) {
+            try {
+                editor.openFile(file);
+                tab.setText(file.getName()); // Resetear nombre tras carga
+            } catch (Exception ex) {
+                showAlert(i18nManager.get("file.error.open"), ex.getMessage());
+                return; // No añadir pestaña si falla
+            }
+        }
+
+        tabPane.getTabs().add(tab);
+        tabPane.getSelectionModel().select(tab);
+        editor.getCodeArea().requestFocus();
     }
 
     private MenuBar createMenuBar() {
@@ -117,10 +185,7 @@ public class Main extends Application {
         saveAsFile.setOnAction(e -> saveFileAs());
 
         MenuItem exit = new MenuItem(i18nManager.get("menu.file.exit"));
-        exit.setOnAction(e -> {
-            System.out.println("Cerrando ZX Spectrum IDE...");
-            primaryStage.close();
-        });
+        exit.setOnAction(e -> handleAppClose());
 
         menuFile.getItems().addAll(
                 newFile,
@@ -133,25 +198,26 @@ public class Main extends Application {
         );
 
         // ============================================
-        // MENÚ EDITAR
+        // MENÚ EDITAR (Actualizado para pestañas)
         // ============================================
         Menu menuEdit = new Menu(i18nManager.get("menu.edit"));
 
         MenuItem undo = new MenuItem(i18nManager.get("menu.edit.undo"));
         undo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
         undo.setOnAction(e -> {
-            if (codeEditor != null && codeEditor.canUndo()) {
-                codeEditor.undo();
+            CodeEditor editor = getCurrentEditor(); // <--- USAR ESTO
+            if (editor != null && editor.canUndo()) {
+                editor.undo();
                 updateStatus(i18nManager.get("menu.edit.undo"));
             }
         });
 
         MenuItem redo = new MenuItem(i18nManager.get("menu.edit.redo"));
-        redo.setAccelerator(new KeyCodeCombination(KeyCode.Z,
-                KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        redo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         redo.setOnAction(e -> {
-            if (codeEditor != null && codeEditor.canRedo()) {
-                codeEditor.redo();
+            CodeEditor editor = getCurrentEditor(); // <--- USAR ESTO
+            if (editor != null && editor.canRedo()) {
+                editor.redo();
                 updateStatus(i18nManager.get("menu.edit.redo"));
             }
         });
@@ -159,24 +225,27 @@ public class Main extends Application {
         MenuItem cut = new MenuItem(i18nManager.get("menu.edit.cut"));
         cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
         cut.setOnAction(e -> {
-            if (codeEditor != null) {
-                codeEditor.cut();
+            CodeEditor editor = getCurrentEditor(); // <--- USAR ESTO
+            if (editor != null) {
+                editor.cut();
             }
         });
 
         MenuItem copy = new MenuItem(i18nManager.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> {
-            if (codeEditor != null) {
-                codeEditor.copy();
+            CodeEditor editor = getCurrentEditor(); // <--- USAR ESTO
+            if (editor != null) {
+                editor.copy();
             }
         });
 
         MenuItem paste = new MenuItem(i18nManager.get("menu.edit.paste"));
         paste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
         paste.setOnAction(e -> {
-            if (codeEditor != null) {
-                codeEditor.paste();
+            CodeEditor editor = getCurrentEditor(); // <--- USAR ESTO
+            if (editor != null) {
+                editor.paste();
             }
         });
 
@@ -335,37 +404,30 @@ public class Main extends Application {
     }
 
     private void newFile() {
-        if (checkUnsavedChanges()) {
-            codeEditor.clear();
-            updateWindowTitle();
-            updateStatus(i18nManager.get("app.ready"));
-        }
+        // Ahora simplemente crea una nueva pestaña vacía
+        createNewTab(null);
     }
 
     private void openFile() {
-        if (checkUnsavedChanges()) {
-            File file = fileManager.showOpenDialog();
-            if (file != null) {
-                try {
-                    codeEditor.openFile(file);
-                    updateWindowTitle();
-                    updateStatus(i18nManager.get("file.opened", file.getName()));
-                } catch (Exception ex) {
-                    showAlert(i18nManager.get("file.error.open"), ex.getMessage());
-                }
-            }
+        File file = fileManager.showOpenDialog();
+        if (file != null) {
+            // Abre el archivo en una NUEVA pestaña
+            createNewTab(file);
+            updateStatus(i18nManager.get("file.opened", file.getName()));
         }
     }
 
     private void saveFile() {
-        if (codeEditor.getCurrentFile() == null) {
+        CodeEditor editor = getCurrentEditor();
+        if (editor == null) return;
+
+        if (editor.getCurrentFile() == null) {
             saveFileAs();
         } else {
             try {
-                codeEditor.saveFile();
-                updateWindowTitle();
-                updateStatus(i18nManager.get("file.saved",
-                        codeEditor.getCurrentFile().getName()));
+                editor.saveFile();
+                // El listener del asterisco se encarga de actualizar el texto del Tab
+                updateStatus(i18nManager.get("file.saved", editor.getCurrentFile().getName()));
             } catch (Exception ex) {
                 showAlert(i18nManager.get("file.error.save"), ex.getMessage());
             }
@@ -373,11 +435,18 @@ public class Main extends Application {
     }
 
     private void saveFileAs() {
+        CodeEditor editor = getCurrentEditor();
+        if (editor == null) return;
+
         File file = fileManager.showSaveDialog();
         if (file != null) {
             try {
-                codeEditor.saveFile(file);
-                updateWindowTitle();
+                editor.saveFile(file);
+                // Actualizamos el título de la pestaña manualmente tras guardar como...
+                Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+                if (currentTab != null) {
+                    currentTab.setText(file.getName());
+                }
                 updateStatus(i18nManager.get("file.saved", file.getName()));
             } catch (Exception ex) {
                 showAlert(i18nManager.get("file.error.save"), ex.getMessage());
@@ -385,17 +454,21 @@ public class Main extends Application {
         }
     }
 
-    private boolean checkUnsavedChanges() {
-        if (codeEditor.isModified()) {
+    // Devuelve TRUE si se puede continuar (se guardó o se descartó), FALSE si se canceló
+    private boolean checkUnsavedChanges(CodeEditor editor) {
+        if (editor != null && editor.isModified()) {
+            // Recuperamos el nombre del archivo para el mensaje
+            String fileName = (editor.getCurrentFile() != null) ? editor.getCurrentFile().getName() : i18nManager.get("file.untitled");
+
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle(i18nManager.get("file.unsaved.title"));
             alert.setHeaderText(null);
-            alert.setContentText(i18nManager.get("file.unsaved.message"));
+            // Mensaje personalizado indicando qué archivo es
+            alert.setContentText("El archivo '" + fileName + "' tiene cambios sin guardar.\n¿Deseas guardarlo?");
 
             ButtonType saveButton = new ButtonType(i18nManager.get("file.unsaved.save"));
             ButtonType discardButton = new ButtonType(i18nManager.get("file.unsaved.discard"));
-            ButtonType cancelButton = new ButtonType(i18nManager.get("file.unsaved.cancel"),
-                    ButtonBar.ButtonData.CANCEL_CLOSE);
+            ButtonType cancelButton = new ButtonType(i18nManager.get("file.unsaved.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
 
             alert.getButtonTypes().setAll(saveButton, discardButton, cancelButton);
 
@@ -407,28 +480,48 @@ public class Main extends Application {
 
             if (result.isPresent()) {
                 if (result.get() == saveButton) {
-                    saveFile();
-                    return !codeEditor.isModified();
+                    try {
+                        // Lógica de guardado local
+                        if (editor.getCurrentFile() == null) {
+                            File file = fileManager.showSaveDialog();
+                            if (file != null) {
+                                editor.saveFile(file);
+                                return true;
+                            }
+                            return false; // Cancelado en el diálogo de guardar
+                        } else {
+                            editor.saveFile();
+                            return true;
+                        }
+                    } catch (Exception ex) {
+                        showAlert("Error", "No se pudo guardar: " + ex.getMessage());
+                        return false;
+                    }
                 } else if (result.get() == discardButton) {
-                    return true;
+                    return true; // Descartar cambios y continuar
                 }
             }
-            return false;
+            return false; // Cancelar operación
         }
-        return true;
+        return true; // No estaba modificado
     }
 
     private void updateWindowTitle() {
         String title = i18nManager.get("app.title");
 
-        if (codeEditor != null && codeEditor.getCurrentFile() != null) {
-            title += " - " + codeEditor.getCurrentFile().getName();
-        } else {
-            title += " - " + i18nManager.get("file.untitled");
-        }
+        // Obtenemos el editor de la pestaña activa
+        CodeEditor editor = getCurrentEditor();
 
-        if (codeEditor != null && codeEditor.isModified()) {
-            title += " " + i18nManager.get("file.modified");
+        if (editor != null) {
+            if (editor.getCurrentFile() != null) {
+                title += " - " + editor.getCurrentFile().getName();
+            } else {
+                title += " - " + i18nManager.get("file.untitled");
+            }
+
+            if (editor.isModified()) {
+                title += " " + i18nManager.get("file.modified");
+            }
         }
 
         primaryStage.setTitle(title);
@@ -507,5 +600,25 @@ public class Main extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    // Helper para obtener el editor de la pestaña activa
+    private CodeEditor getCurrentEditor() {
+        if (tabPane == null || tabPane.getSelectionModel().getSelectedItem() == null) {
+            return null;
+        }
+        return (CodeEditor) tabPane.getSelectionModel().getSelectedItem().getContent();
+    }
+
+    private void handleAppClose() {
+        // Verificar todas las pestañas abiertas
+        for (Tab tab : tabPane.getTabs()) {
+            CodeEditor editor = (CodeEditor) tab.getContent();
+            if (!checkUnsavedChanges(editor)) {
+                return; // Si el usuario cancela en algún archivo, abortamos el cierre
+            }
+        }
+        System.out.println("Cerrando ZX Spectrum IDE...");
+        primaryStage.close();
     }
 }

@@ -42,7 +42,7 @@ La configuración se guarda en: `~/.zxide/config.json`
 ## 🔗 INFORMACIÓN PARA RETOMAR
 
 **Dominio del proyecto**: `com.lazyzxsoftware.zxspectrumide`  
-**Versión actual**: 0.0.3
+**Versión actual**: 0.0.4
 **JDK**: 17  
 **JavaFX**: 21  
 **Build System**: Maven
