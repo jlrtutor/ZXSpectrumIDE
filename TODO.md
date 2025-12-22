@@ -679,5 +679,5 @@
 
 ---
 
-**Versión**: 0.0.2  
+**Versión**: 0.0.3  
 **Última actualización**: Diciembre 2025

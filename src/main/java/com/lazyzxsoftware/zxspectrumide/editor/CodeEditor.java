@@ -2,7 +2,6 @@ package com.lazyzxsoftware.zxspectrumide.editor;
 
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
-import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -13,7 +12,7 @@ import org.fxmisc.richtext.LineNumberFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.time.Duration;
 
 /**
  * Editor de código basado en RichTextFX
@@ -25,6 +24,8 @@ public class CodeEditor extends BorderPane {
     private final ConfigManager configManager;
     private File currentFile;
     private boolean modified;
+    private boolean syntaxHighlightingEnabled = true;
+    private Runnable onModifiedChanged;
 
     public CodeEditor() {
         configManager = ConfigManager.getInstance();
@@ -37,6 +38,19 @@ public class CodeEditor extends BorderPane {
 
         // Añadir al layout
         setCenter(codeArea);
+
+        // Esperar a que esté en una escena antes de configurar resaltado
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                // Aplicar la stylesheet de la escena al CodeArea
+                codeArea.getStylesheets().clear();
+                codeArea.getStylesheets().addAll(newScene.getStylesheets());
+
+                if (syntaxHighlightingEnabled) {
+                    setupSyntaxHighlighting();
+                }
+            }
+        });
 
         // Listener para detectar cambios
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
@@ -60,20 +74,52 @@ public class CodeEditor extends BorderPane {
                 fontFamily, fontSize
         ));
 
-        // Configurar tabulación
-        int tabSize = configManager.getConfig().getTabSize();
-        // RichTextFX no tiene setTabSize directo, lo manejaremos con eventos después
-
         // Hacer el área expandible
         HBox.setHgrow(codeArea, Priority.ALWAYS);
 
         // Placeholder cuando está vacío
-        //codeArea.setPromptText("; Escribe tu código Z80 Assembly aquí...");
-
         Label placeholder = new Label(I18nManager.getInstance().get("editor.placeholder"));
         placeholder.getStyleClass().add("code-placeholder");
-
         codeArea.setPlaceholder(placeholder);
+    }
+
+    /**
+     * Configura el resaltado de sintaxis
+     */
+    private void setupSyntaxHighlighting() {
+        // Aplicar resaltado cuando cambia el texto
+        codeArea.multiPlainChanges()
+                .successionEnds(Duration.ofMillis(50))
+                .subscribe(ignore -> {
+                    codeArea.setStyleSpans(0, Z80Lexer.computeHighlighting(codeArea.getText()));
+                });
+
+        // Aplicar resaltado inicial si hay texto
+        if (!codeArea.getText().isEmpty()) {
+            codeArea.setStyleSpans(0, Z80Lexer.computeHighlighting(codeArea.getText()));
+        }
+
+        System.out.println("Resaltado de sintaxis configurado");
+    }
+
+    /**
+     * Activa o desactiva el resaltado de sintaxis
+     */
+    public void setSyntaxHighlightingEnabled(boolean enabled) {
+        this.syntaxHighlightingEnabled = enabled;
+        if (enabled && getScene() != null) {
+            setupSyntaxHighlighting();
+            codeArea.setStyleSpans(0, Z80Lexer.computeHighlighting(codeArea.getText()));
+        } else {
+            codeArea.clearStyle(0, codeArea.getLength());
+        }
+    }
+
+    /**
+     * Establece el callback para cuando cambia el estado de modificación
+     */
+    public void setOnModifiedChanged(Runnable callback) {
+        this.onModifiedChanged = callback;
     }
 
     /**
@@ -88,6 +134,12 @@ public class CodeEditor extends BorderPane {
      */
     public void setText(String text) {
         codeArea.replaceText(text);
+
+        // Aplicar resaltado de sintaxis
+        if (syntaxHighlightingEnabled && !text.isEmpty()) {
+            codeArea.setStyleSpans(0, Z80Lexer.computeHighlighting(text));
+        }
+
         setModified(false);
     }
 
@@ -211,13 +263,16 @@ public class CodeEditor extends BorderPane {
      */
     private void setModified(boolean modified) {
         this.modified = modified;
+        if (onModifiedChanged != null) {
+            onModifiedChanged.run();
+        }
     }
 
     /**
      * Obtiene el número de línea actual
      */
     public int getCurrentLine() {
-        return codeArea.getCurrentParagraph() + 1; // +1 porque comienza en 0
+        return codeArea.getCurrentParagraph() + 1;
     }
 
     /**

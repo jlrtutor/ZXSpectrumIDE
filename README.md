@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.0.2--alpha-blue)
+![Version](https://img.shields.io/badge/version-0.0.3--alpha-blue)
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21-green)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)

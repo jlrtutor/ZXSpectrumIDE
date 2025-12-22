@@ -2,19 +2,24 @@ package com.lazyzxsoftware.zxspectrumide;
 
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
 import com.lazyzxsoftware.zxspectrumide.editor.CodeEditor;
+import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
+import com.lazyzxsoftware.zxspectrumide.utils.SplashScreen;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 
-import java.io.IOException;
+import java.io.File;
 
 public class Main extends Application {
 
@@ -24,60 +29,84 @@ public class Main extends Application {
     private I18nManager i18nManager;
     private Label statusLabel;
     private CodeEditor codeEditor;
+    private FileManager fileManager;
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
 
-        // Inicializar managers
-        configManager = ConfigManager.getInstance();
-        i18nManager = I18nManager.getInstance();
-        themeManager = ThemeManager.getInstance();
+        // Mostrar splash screen
+        SplashScreen splash = new SplashScreen();
+        splash.show();
 
-        // Configuración de la ventana principal
-        primaryStage.setTitle(i18nManager.get("app.title"));
-
-        // Hacer la ventana invisible inicialmente para evitar parpadeo
-        primaryStage.setOpacity(0);
-
-        // Layout principal
-        BorderPane root = new BorderPane();
-
-        // Barra de menú
-        MenuBar menuBar = createMenuBar();
-        root.setTop(menuBar);
-
-        // Área central - Editor de código
-        codeEditor = new CodeEditor();
-        root.setCenter(codeEditor);
-
-        // Barra de estado
-        HBox statusBar = createStatusBar();
-        root.setBottom(statusBar);
-
-        // Crear la escena
-        Scene scene = new Scene(root, 1200, 800);
-
-        // Aplicar a la ventana
-        primaryStage.setScene(scene);
-
-        // Registrar escena en ThemeManager y aplicar tema
-        themeManager.registerScene(scene);
-
-        // Mostrar ventana (todavía invisible)
-        primaryStage.show();
-
-        // Hacer visible después de que todo esté renderizado
+        // Inicializar en background
         Platform.runLater(() -> {
-            primaryStage.setOpacity(1);
+            try {
+                splash.updateStatus("Cargando configuración...");
+                Thread.sleep(300);
+
+                configManager = ConfigManager.getInstance();
+
+                splash.updateStatus("Cargando idioma...");
+                Thread.sleep(300);
+                i18nManager = I18nManager.getInstance();
+
+                splash.updateStatus("Cargando temas...");
+                Thread.sleep(300);
+                themeManager = ThemeManager.getInstance();
+
+                splash.updateStatus("Inicializando gestor de archivos...");
+                Thread.sleep(300);
+                fileManager = new FileManager(primaryStage);
+
+                primaryStage.setTitle(i18nManager.get("app.title"));
+
+                BorderPane root = new BorderPane();
+
+                splash.updateStatus("Creando interfaz...");
+                Thread.sleep(300);
+
+                MenuBar menuBar = createMenuBar();
+                root.setTop(menuBar);
+
+                splash.updateStatus("Inicializando editor...");
+                Thread.sleep(400);
+
+                codeEditor = new CodeEditor();
+                codeEditor.setOnModifiedChanged(this::updateWindowTitle);
+                root.setCenter(codeEditor);
+
+                HBox statusBar = createStatusBar();
+                root.setBottom(statusBar);
+
+                Scene scene = new Scene(root, 1200, 800);
+                primaryStage.setScene(scene);
+
+                splash.updateStatus("Aplicando tema...");
+                Thread.sleep(300);
+
+                themeManager.registerScene(scene);
+
+                splash.updateStatus("Finalizando...");
+                Thread.sleep(300);
+
+                updateStatus(i18nManager.get("app.ready"));
+
+                System.out.println(i18nManager.get("message.ide_started"));
+                System.out.println(i18nManager.get("message.current_theme",
+                        themeManager.getCurrentTheme().getDisplayName()));
+
+                // Cerrar splash y mostrar ventana principal
+                splash.close(() -> {
+                    primaryStage.show();
+                    updateWindowTitle();
+                });
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                splash.close(() -> primaryStage.show());
+            }
         });
-
-        // Actualizar estado
-        updateStatus(i18nManager.get("app.ready"));
-
-        System.out.println(i18nManager.get("message.ide_started"));
-        System.out.println(i18nManager.get("message.current_theme",
-                themeManager.getCurrentTheme().getDisplayName()));
     }
 
     private MenuBar createMenuBar() {
@@ -88,31 +117,22 @@ public class Main extends Application {
         // ============================================
         Menu menuFile = new Menu(i18nManager.get("menu.file"));
 
-        MenuItem newProject = new MenuItem(i18nManager.get("menu.file.new_project"));
-        newProject.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.new_project.title"),
-                i18nManager.get("dialog.new_project.message")
-        ));
+        MenuItem newFile = new MenuItem(i18nManager.get("menu.file.new"));
+        newFile.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
+        newFile.setOnAction(e -> newFile());
 
-        MenuItem openProject = new MenuItem(i18nManager.get("menu.file.open_project"));
-        openProject.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.open_project.title"),
-                i18nManager.get("dialog.open_project.message")
-        ));
+        MenuItem openFile = new MenuItem(i18nManager.get("menu.file.open"));
+        openFile.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
+        openFile.setOnAction(e -> openFile());
 
         MenuItem saveFile = new MenuItem(i18nManager.get("menu.file.save"));
-        saveFile.setOnAction(e -> {
-            if (codeEditor != null) {
-                try {
-                    codeEditor.saveFile();
-                    updateStatus(i18nManager.get("status.file_saved"));
-                } catch (IOException ex) {
-                    showAlert("Error", "No se pudo guardar el archivo: " + ex.getMessage());
-                }
-            }
-        });
+        saveFile.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
+        saveFile.setOnAction(e -> saveFile());
 
         MenuItem saveAsFile = new MenuItem(i18nManager.get("menu.file.save_as"));
+        saveAsFile.setAccelerator(new KeyCodeCombination(KeyCode.S,
+                KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        saveAsFile.setOnAction(e -> saveFileAs());
 
         MenuItem exit = new MenuItem(i18nManager.get("menu.file.exit"));
         exit.setOnAction(e -> {
@@ -121,8 +141,8 @@ public class Main extends Application {
         });
 
         menuFile.getItems().addAll(
-                newProject,
-                openProject,
+                newFile,
+                openFile,
                 new SeparatorMenuItem(),
                 saveFile,
                 saveAsFile,
@@ -136,6 +156,7 @@ public class Main extends Application {
         Menu menuEdit = new Menu(i18nManager.get("menu.edit"));
 
         MenuItem undo = new MenuItem(i18nManager.get("menu.edit.undo"));
+        undo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
         undo.setOnAction(e -> {
             if (codeEditor != null && codeEditor.canUndo()) {
                 codeEditor.undo();
@@ -144,6 +165,8 @@ public class Main extends Application {
         });
 
         MenuItem redo = new MenuItem(i18nManager.get("menu.edit.redo"));
+        redo.setAccelerator(new KeyCodeCombination(KeyCode.Z,
+                KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         redo.setOnAction(e -> {
             if (codeEditor != null && codeEditor.canRedo()) {
                 codeEditor.redo();
@@ -152,6 +175,7 @@ public class Main extends Application {
         });
 
         MenuItem cut = new MenuItem(i18nManager.get("menu.edit.cut"));
+        cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
         cut.setOnAction(e -> {
             if (codeEditor != null) {
                 codeEditor.cut();
@@ -159,6 +183,7 @@ public class Main extends Application {
         });
 
         MenuItem copy = new MenuItem(i18nManager.get("menu.edit.copy"));
+        copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> {
             if (codeEditor != null) {
                 codeEditor.copy();
@@ -166,6 +191,7 @@ public class Main extends Application {
         });
 
         MenuItem paste = new MenuItem(i18nManager.get("menu.edit.paste"));
+        paste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
         paste.setOnAction(e -> {
             if (codeEditor != null) {
                 codeEditor.paste();
@@ -173,7 +199,10 @@ public class Main extends Application {
         });
 
         MenuItem find = new MenuItem(i18nManager.get("menu.edit.find"));
+        find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+
         MenuItem replace = new MenuItem(i18nManager.get("menu.edit.replace"));
+        replace.setAccelerator(new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN));
 
         menuEdit.getItems().addAll(
                 undo,
@@ -192,7 +221,6 @@ public class Main extends Application {
         // ============================================
         Menu menuView = new Menu(i18nManager.get("menu.view"));
 
-        // Submenú de temas
         Menu themeMenu = new Menu(i18nManager.get("menu.view.theme"));
         ToggleGroup themeGroup = new ToggleGroup();
 
@@ -203,7 +231,7 @@ public class Main extends Application {
             themeItem.setOnAction(e -> {
                 themeManager.setTheme(theme);
                 updateStatus(i18nManager.get("theme.changed", theme.getDisplayName()));
-                updateStatusBar(); // Actualizar barra de estado
+                updateStatusBar();
             });
             themeMenu.getItems().add(themeItem);
         }
@@ -221,23 +249,11 @@ public class Main extends Application {
                 i18nManager.get("menu.view.show_line_numbers")
         );
         showLineNumbers.setSelected(configManager.getConfig().isShowLineNumbers());
-        showLineNumbers.setOnAction(e -> {
-            configManager.getConfig().setShowLineNumbers(showLineNumbers.isSelected());
-            configManager.saveConfig();
-            updateStatus(showLineNumbers.isSelected() ?
-                    i18nManager.get("status.line_numbers.enabled") :
-                    i18nManager.get("status.line_numbers.disabled")
-            );
-        });
 
         CheckMenuItem showWhitespace = new CheckMenuItem(
                 i18nManager.get("menu.view.show_whitespace")
         );
         showWhitespace.setSelected(configManager.getConfig().isShowWhitespace());
-        showWhitespace.setOnAction(e -> {
-            configManager.getConfig().setShowWhitespace(showWhitespace.isSelected());
-            configManager.saveConfig();
-        });
 
         menuView.getItems().addAll(
                 themeMenu,
@@ -253,6 +269,7 @@ public class Main extends Application {
         Menu menuTools = new Menu(i18nManager.get("menu.tools"));
 
         MenuItem compile = new MenuItem(i18nManager.get("menu.tools.compile"));
+        compile.setAccelerator(new KeyCodeCombination(KeyCode.F5));
         compile.setOnAction(e -> {
             updateStatus(i18nManager.get("app.compiling"));
             showAlert(
@@ -262,6 +279,7 @@ public class Main extends Application {
         });
 
         MenuItem run = new MenuItem(i18nManager.get("menu.tools.run"));
+        run.setAccelerator(new KeyCodeCombination(KeyCode.F6));
         run.setOnAction(e -> {
             updateStatus(i18nManager.get("app.running"));
             showAlert(
@@ -271,22 +289,8 @@ public class Main extends Application {
         });
 
         MenuItem spriteEditor = new MenuItem(i18nManager.get("menu.tools.sprite_editor"));
-        spriteEditor.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.sprite_editor.title"),
-                i18nManager.get("dialog.sprite_editor.message")
-        ));
-
         MenuItem mapEditor = new MenuItem(i18nManager.get("menu.tools.map_editor"));
-        mapEditor.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.map_editor.title"),
-                i18nManager.get("dialog.map_editor.message")
-        ));
-
         MenuItem musicEditor = new MenuItem(i18nManager.get("menu.tools.music_editor"));
-        musicEditor.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.music_editor.title"),
-                i18nManager.get("dialog.music_editor.message")
-        ));
 
         menuTools.getItems().addAll(
                 compile,
@@ -303,12 +307,7 @@ public class Main extends Application {
         Menu menuSettings = new Menu(i18nManager.get("menu.settings"));
 
         MenuItem preferences = new MenuItem(i18nManager.get("menu.settings.preferences"));
-        preferences.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.preferences.title"),
-                i18nManager.get("dialog.preferences.message")
-        ));
 
-        // Submenú de idiomas
         Menu languageMenu = new Menu(i18nManager.get("menu.settings.language"));
         ToggleGroup languageGroup = new ToggleGroup();
 
@@ -316,10 +315,6 @@ public class Main extends Application {
             RadioMenuItem langItem = new RadioMenuItem(lang.getDisplayName());
             langItem.setToggleGroup(languageGroup);
             langItem.setSelected(lang == i18nManager.getCurrentLanguage());
-            langItem.setOnAction(e -> {
-                i18nManager.loadLanguage(lang);
-                showAlert("Idioma", "Reinicia la aplicación para aplicar el cambio de idioma.");
-            });
             languageMenu.getItems().add(langItem);
         }
 
@@ -331,11 +326,6 @@ public class Main extends Application {
         Menu menuHelp = new Menu(i18nManager.get("menu.help"));
 
         MenuItem documentation = new MenuItem(i18nManager.get("menu.help.documentation"));
-        documentation.setOnAction(e -> showAlert(
-                i18nManager.get("dialog.documentation.title"),
-                i18nManager.get("dialog.documentation.message")
-        ));
-
         MenuItem about = new MenuItem(i18nManager.get("menu.help.about"));
         about.setOnAction(e -> showAboutDialog());
 
@@ -354,7 +344,6 @@ public class Main extends Application {
         statusLabel = new Label(i18nManager.get("app.ready"));
         statusLabel.setStyle("-fx-font-size: 12px;");
 
-        // Spacer
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
@@ -363,8 +352,114 @@ public class Main extends Application {
         return statusBar;
     }
 
+    private void newFile() {
+        if (checkUnsavedChanges()) {
+            codeEditor.clear();
+            updateWindowTitle();
+            updateStatus(i18nManager.get("app.ready"));
+        }
+    }
+
+    private void openFile() {
+        if (checkUnsavedChanges()) {
+            File file = fileManager.showOpenDialog();
+            if (file != null) {
+                try {
+                    codeEditor.openFile(file);
+                    updateWindowTitle();
+                    updateStatus(i18nManager.get("file.opened", file.getName()));
+                } catch (Exception ex) {
+                    showAlert(i18nManager.get("file.error.open"), ex.getMessage());
+                }
+            }
+        }
+    }
+
+    private void saveFile() {
+        if (codeEditor.getCurrentFile() == null) {
+            saveFileAs();
+        } else {
+            try {
+                codeEditor.saveFile();
+                updateWindowTitle();
+                updateStatus(i18nManager.get("file.saved",
+                        codeEditor.getCurrentFile().getName()));
+            } catch (Exception ex) {
+                showAlert(i18nManager.get("file.error.save"), ex.getMessage());
+            }
+        }
+    }
+
+    private void saveFileAs() {
+        File file = fileManager.showSaveDialog();
+        if (file != null) {
+            try {
+                codeEditor.saveFile(file);
+                updateWindowTitle();
+                updateStatus(i18nManager.get("file.saved", file.getName()));
+            } catch (Exception ex) {
+                showAlert(i18nManager.get("file.error.save"), ex.getMessage());
+            }
+        }
+    }
+
+    private boolean checkUnsavedChanges() {
+        if (codeEditor.isModified()) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle(i18nManager.get("file.unsaved.title"));
+            alert.setHeaderText(null);
+            alert.setContentText(i18nManager.get("file.unsaved.message"));
+
+            ButtonType saveButton = new ButtonType(i18nManager.get("file.unsaved.save"));
+            ButtonType discardButton = new ButtonType(i18nManager.get("file.unsaved.discard"));
+            ButtonType cancelButton = new ButtonType(i18nManager.get("file.unsaved.cancel"),
+                    ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            alert.getButtonTypes().setAll(saveButton, discardButton, cancelButton);
+
+            DialogPane dialogPane = alert.getDialogPane();
+            dialogPane.setMinWidth(500);
+            themeManager.registerScene(dialogPane.getScene());
+
+            var result = alert.showAndWait();
+
+            if (result.isPresent()) {
+                if (result.get() == saveButton) {
+                    saveFile();
+                    return !codeEditor.isModified();
+                } else if (result.get() == discardButton) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private void updateWindowTitle() {
+        String title = i18nManager.get("app.title");
+
+        if (codeEditor != null && codeEditor.getCurrentFile() != null) {
+            title += " - " + codeEditor.getCurrentFile().getName();
+        } else {
+            title += " - " + i18nManager.get("file.untitled");
+        }
+
+        if (codeEditor != null && codeEditor.isModified()) {
+            title += " " + i18nManager.get("file.modified");
+        }
+
+        primaryStage.setTitle(title);
+    }
+
+    private void updateStatus(String message) {
+        if (statusLabel != null) {
+            statusLabel.setText(message);
+        }
+        System.out.println("Status: " + message);
+    }
+
     private void updateStatusBar() {
-        // Recrear la barra de estado con información actualizada
         HBox statusBar = (HBox) ((BorderPane) primaryStage.getScene().getRoot()).getBottom();
         statusBar.getChildren().clear();
 
@@ -385,13 +480,6 @@ public class Main extends Application {
         statusBar.getChildren().addAll(statusLabel, spacer, themeLabel, configLabel);
     }
 
-    private void updateStatus(String message) {
-        if (statusLabel != null) {
-            statusLabel.setText(message);
-        }
-        System.out.println("Status: " + message);
-    }
-
     private void updateThemeRadioButtons(ToggleGroup group) {
         for (Toggle toggle : group.getToggles()) {
             RadioMenuItem item = (RadioMenuItem) toggle;
@@ -410,6 +498,7 @@ public class Main extends Application {
         alert.setContentText(message);
 
         DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setMinWidth(400);
         themeManager.registerScene(dialogPane.getScene());
 
         alert.showAndWait();
@@ -422,6 +511,7 @@ public class Main extends Application {
         alert.setContentText(i18nManager.get("dialog.about.content"));
 
         DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setMinWidth(500);
         themeManager.registerScene(dialogPane.getScene());
 
         alert.showAndWait();
