@@ -5,7 +5,12 @@ import com.lazyzxsoftware.zxspectrumide.editor.CodeEditor;
 import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
+import com.lazyzxsoftware.zxspectrumide.ui.SettingsDialog;
 import com.lazyzxsoftware.zxspectrumide.utils.SplashScreen;
+import com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -17,6 +22,8 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import java.io.File;
@@ -28,89 +35,149 @@ public class Main extends Application {
     private ConfigManager configManager;
     private I18nManager i18nManager;
     private Label statusLabel;
+    private TextArea consoleArea;
     private TabPane tabPane;
     private FileManager fileManager;
+    private HBox statusBarBox;
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
 
-        // Mostrar splash screen
+        // 1. Mostrar Splash Screen
         SplashScreen splash = new SplashScreen();
         splash.show();
 
-        // Inicializar en background
-        Platform.runLater(() -> {
+        // 2. Tarea de carga en segundo plano (Hilo separado)
+        new Thread(() -> {
             try {
-                // --- Bloque limpio sin sleeps ---
-                splash.updateStatus("Cargando configuración...");
+                long delay = 200;
+                Platform.runLater(() -> {
+                    splash.updateStatus("Iniciando núcleo del sistema...");
+                    splash.updateProgress(0.1);
+                });
+                Thread.sleep(delay);
+
+                // PASO 2: Configuración (25%)
                 configManager = ConfigManager.getInstance();
+                Platform.runLater(() -> {
+                    splash.updateStatus("Cargando preferencias de usuario...");
+                    splash.updateProgress(0.25);
+                });
+                Thread.sleep(delay);
 
-                splash.updateStatus("Cargando idioma...");
-                i18nManager = I18nManager.getInstance();
-
-                splash.updateStatus("Cargando temas...");
+                // PASO 3: Recursos Visuales (50%)
+                loadCustomFont("RobotoMono-Regular.ttf");
+                loadCustomFont("RobotoMono-Bold.ttf");
+                loadCustomFont("RobotoMono-Italic.ttf");
                 themeManager = ThemeManager.getInstance();
 
-                splash.updateStatus("Inicializando gestor de archivos...");
+                Platform.runLater(() -> {
+                    splash.updateStatus("Aplicando temas y estilos...");
+                    splash.updateProgress(0.50);
+                });
+                Thread.sleep(delay);
+
+                // PASO 4: Idioma y Sistema (75%)
+                i18nManager = I18nManager.getInstance();
                 fileManager = new FileManager(primaryStage);
 
-                primaryStage.setTitle(i18nManager.get("app.title"));
-                BorderPane root = new BorderPane();
+                Platform.runLater(() -> {
+                    splash.updateStatus("Cargando traducciones y sistema de archivos...");
+                    splash.updateProgress(0.75);
+                });
+                Thread.sleep(delay);
 
-                splash.updateStatus("Creando interfaz...");
-                MenuBar menuBar = createMenuBar();
-                root.setTop(menuBar);
+                // PASO 5: Finalización (100%)
+                Platform.runLater(() -> {
+                    splash.updateStatus("Listo. Lanzando interfaz...");
+                    splash.updateProgress(1.0);
+                });
+                Thread.sleep(delay); // Una última pausa para ver la barra llena
 
-                splash.updateStatus("Inicializando sistema de pestañas...");
-
-                // Inicializar TabPane
-                tabPane = new TabPane();
-                // Opcional: Para cerrar pestañas con Ctrl+W, etc.
-                tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
-
-                // IMPORTANTE: Actualizar título y estado al cambiar de pestaña
-                tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-                    updateWindowTitle();
-                    // Opcional: actualizar barra de estado si tuviera info específica de la pestaña
+                // LANZAR LA UI PRINCIPAL
+                Platform.runLater(() -> {
+                    try {
+                        initializeMainUI(splash);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 });
 
-                root.setCenter(tabPane);
-
-                // Abrir una pestaña vacía por defecto al iniciar
-                createNewTab(null);
-
-                HBox statusBar = createStatusBar();
-                root.setBottom(statusBar);
-
-                Scene scene = new Scene(root, 1200, 800);
-                primaryStage.setScene(scene);
-
-                splash.updateStatus("Aplicando tema...");
-                themeManager.registerScene(scene);
-
-                updateStatus(i18nManager.get("app.ready"));
-
-                primaryStage.setOnCloseRequest(e -> {
-                    handleAppClose();
-                    // Si la ventana sigue abierta es que se canceló, consumimos el evento si es necesario
-                    // Pero como handleAppClose llama a close() explícitamente si todo va bien,
-                    // aquí solo necesitamos prevenir el cierre por defecto si se canceló.
-                    // Una forma más simple es:
-                    // e.consume(); handleAppClose();
-                });
-
-                // Cerrar splash y mostrar ventana principal
-                splash.close(() -> {
-                    primaryStage.show();
-                    updateWindowTitle();
-                });
-
-            } catch (Exception e) { // Cambia InterruptedException por Exception
+            } catch (Exception e) {
                 e.printStackTrace();
-                splash.close(() -> primaryStage.show());
+                Platform.runLater(() -> splash.close(null));
             }
+        }).start();
+    }
+
+    private void initializeMainUI(SplashScreen splash) {
+        splash.updateStatus("Construyendo interfaz gráfica...");
+
+        primaryStage.setTitle(i18nManager.get("app.title"));
+
+        try {
+            // Intenta cargar el icono. Asegúrate de que el nombre coincida (png o svg)
+            String iconPath = "/com/lazyzxsoftware/zxspectrumide/icons/app_icon.png";
+            var iconStream = getClass().getResourceAsStream(iconPath);
+            if (iconStream != null) {
+                primaryStage.getIcons().add(new javafx.scene.image.Image(iconStream));
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo cargar el icono de la aplicación: " + e.getMessage());
+        }
+
+        // 1. Crear el contenedor raíz
+        BorderPane root = new BorderPane();
+
+        // 2. Crear y añadir el MENÚ SUPERIOR (¡Crucial para que se vea!)
+        MenuBar menuBar = createMenuBar();
+        root.setTop(menuBar);
+
+        // 3. Sistema de pestañas (Editor)
+        tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            updateWindowTitle();
         });
+        createNewTab(null); // Pestaña inicial
+
+        // 4. Área de Consola
+        consoleArea = new TextArea();
+        consoleArea.setEditable(false);
+        consoleArea.setWrapText(true);
+        consoleArea.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 12px;");
+        consoleArea.setPromptText("Salida del compilador...");
+
+        // 5. Barra de Estado
+        createStatusBar(); // Inicializa la variable 'statusBarBox'
+
+        // 6. SplitPane (Divide Editor y Consola)
+        SplitPane splitPane = new SplitPane();
+        splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        splitPane.getItems().addAll(tabPane, consoleArea);
+        splitPane.setDividerPositions(0.8); // 80% para editor
+
+        // 7. Montar el layout principal
+        root.setCenter(splitPane);      // Centro: Editor + Consola
+        root.setBottom(statusBarBox);   // Abajo: Barra de estado fija
+
+        // 8. Crear la escena con TAMAÑO EXPLÍCITO (Soluciona ventana pequeña)
+        Scene scene = new Scene(root, 1200, 800);
+
+        // 9. Configuración final del Stage
+        primaryStage.setScene(scene);
+        themeManager.registerScene(scene); // Aplicar tema
+
+        updateStatus(i18nManager.get("app.ready"));
+        primaryStage.setOnCloseRequest(e -> handleAppClose());
+
+        // 10. Mostrar ventana principal y cerrar splash
+        primaryStage.show();
+        splash.close(null);
+
+        // Actualizar título final (por si hay archivo abierto o modificado)
+        updateWindowTitle();
     }
 
     private void createNewTab(File file) {
@@ -323,20 +390,14 @@ public class Main extends Application {
         compile.setAccelerator(new KeyCodeCombination(KeyCode.F5));
         compile.setOnAction(e -> {
             updateStatus(i18nManager.get("app.compiling"));
-            showAlert(
-                    i18nManager.get("dialog.compile.title"),
-                    i18nManager.get("dialog.compile.message")
-            );
+            compileCurrentFile();
         });
 
         MenuItem run = new MenuItem(i18nManager.get("menu.tools.run"));
         run.setAccelerator(new KeyCodeCombination(KeyCode.F6));
         run.setOnAction(e -> {
             updateStatus(i18nManager.get("app.running"));
-            showAlert(
-                    i18nManager.get("dialog.run.title"),
-                    i18nManager.get("dialog.run.message")
-            );
+            runCurrentFile();
         });
 
         MenuItem spriteEditor = new MenuItem(i18nManager.get("menu.tools.sprite_editor"));
@@ -358,6 +419,7 @@ public class Main extends Application {
         Menu menuSettings = new Menu(i18nManager.get("menu.settings"));
 
         MenuItem preferences = new MenuItem(i18nManager.get("menu.settings.preferences"));
+        preferences.setOnAction(e -> SettingsDialog.show(primaryStage.getScene()));
 
         Menu languageMenu = new Menu(i18nManager.get("menu.settings.language"));
         ToggleGroup languageGroup = new ToggleGroup();
@@ -388,9 +450,10 @@ public class Main extends Application {
     }
 
     private HBox createStatusBar() {
-        HBox statusBar = new HBox(10);
-        statusBar.getStyleClass().add("status-bar");
-        statusBar.setPadding(new Insets(5, 10, 5, 10));
+        // Asignamos a la variable de clase directamente
+        statusBarBox = new HBox(10);
+        statusBarBox.getStyleClass().add("status-bar");
+        statusBarBox.setPadding(new Insets(5, 10, 5, 10));
 
         statusLabel = new Label(i18nManager.get("app.ready"));
         statusLabel.setStyle("-fx-font-size: 12px;");
@@ -398,9 +461,9 @@ public class Main extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        statusBar.getChildren().addAll(statusLabel, spacer);
+        statusBarBox.getChildren().addAll(statusLabel, spacer);
 
-        return statusBar;
+        return statusBarBox;
     }
 
     private void newFile() {
@@ -535,8 +598,10 @@ public class Main extends Application {
     }
 
     private void updateStatusBar() {
-        HBox statusBar = (HBox) ((BorderPane) primaryStage.getScene().getRoot()).getBottom();
-        statusBar.getChildren().clear();
+        // Verificación de seguridad simple
+        if (statusBarBox == null) return;
+
+        statusBarBox.getChildren().clear();
 
         statusLabel = new Label(statusLabel.getText());
         statusLabel.setStyle("-fx-font-size: 12px;");
@@ -552,7 +617,7 @@ public class Main extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        statusBar.getChildren().addAll(statusLabel, spacer, themeLabel, configLabel);
+        statusBarBox.getChildren().addAll(statusLabel, spacer, themeLabel, configLabel);
     }
 
     private void updateThemeRadioButtons(ToggleGroup group) {
@@ -620,5 +685,142 @@ public class Main extends Application {
         }
         System.out.println("Cerrando ZX Spectrum IDE...");
         primaryStage.close();
+    }
+
+    private void compileCurrentFile() {
+        CodeEditor editor = getCurrentEditor();
+        if (editor == null || editor.getCurrentFile() == null) {
+            logToConsole("Error: No hay archivo seleccionado o no se ha guardado nunca.");
+            return;
+        }
+
+        // 1. Guardar cambios antes de compilar
+        if (editor.isModified()) {
+            try {
+                editor.saveFile();
+                logToConsole("Archivo guardado automáticamente: " + editor.getCurrentFile().getName());
+            } catch (Exception e) {
+                logToConsole("Error al guardar: " + e.getMessage());
+                return;
+            }
+        }
+
+        // 2. Preparar compilación
+        File sourceFile = editor.getCurrentFile();
+        // Creamos carpeta 'build' junto al archivo fuente
+        File outputDir = getBuildDirectory(sourceFile);
+
+        if (!outputDir.exists()) outputDir.mkdirs();
+
+        consoleArea.clear();
+        logToConsole("Compilando en: " + outputDir.getAbsolutePath());
+
+        // 3. Ejecutar PasmoCompiler en un hilo separado (para no congelar la UI)
+        new Thread(() -> {
+            try {
+                PasmoCompiler compiler = new PasmoCompiler();
+                Process process = compiler.compile(sourceFile, outputDir);
+
+                // Leer la salida del proceso (stdout y stderr combinados en PasmoCompiler)
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String finalLine = line;
+                        // Actualizar UI desde el hilo de JavaFX
+                        Platform.runLater(() -> logToConsole(finalLine));
+                    }
+                }
+
+                int exitCode = process.waitFor();
+                Platform.runLater(() -> {
+                    if (exitCode == 0) {
+                        logToConsole("COMPILACIÓN EXITOSA");
+                        updateStatus("Compilación finalizada con éxito.");
+                    } else {
+                        logToConsole("ERROR DE COMPILACIÓN");
+                        updateStatus("Falló la compilación.");
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> logToConsole("Error crítico al lanzar compilador: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    // Helper para escribir en la consola
+    private void logToConsole(String text) {
+        consoleArea.appendText(text + "\n");
+        // Auto-scroll al final
+        consoleArea.positionCaret(consoleArea.getLength());
+    }
+
+    private File getBuildDirectory(File sourceFile) {
+        String customBuildPath = ConfigManager.getInstance().getConfig().getBuildPath();
+
+        if (customBuildPath != null && !customBuildPath.isBlank()) {
+            File customDir = new File(customBuildPath);
+            if (!customDir.exists()) customDir.mkdirs();
+            return customDir;
+        } else {
+            // Comportamiento por defecto: Carpeta 'build' relativa al fuente
+            File defaultDir = new File(sourceFile.getParent(), "build");
+            if (!defaultDir.exists()) defaultDir.mkdirs();
+            return defaultDir;
+        }
+    }
+
+    private void runCurrentFile() {
+        CodeEditor editor = getCurrentEditor();
+        if (editor == null || editor.getCurrentFile() == null) {
+            showAlert("Error", "No hay archivo para ejecutar.");
+            return;
+        }
+
+        File sourceFile = editor.getCurrentFile();
+        File buildDir = getBuildDirectory(sourceFile);
+
+        // Calculamos el nombre del TAP esperado
+        // NOTA: PasmoCompiler usa esta misma lógica para nombrar el archivo
+        String baseName = sourceFile.getName().replaceFirst("[.][^.]+$", "");
+
+        // Asumimos .tap (o .hex/.bin según config, pero ZEsarUX suele querer .tap)
+        // Si soportas múltiples formatos, deberías consultar AppConfig.getPasmoFormat()
+        String extension = ".tap";
+        if("hex".equals(ConfigManager.getInstance().getConfig().getPasmoFormat())) extension = ".hex";
+        if("bin".equals(ConfigManager.getInstance().getConfig().getPasmoFormat())) extension = ".bin";
+
+        File executableFile = new File(buildDir, baseName + extension);
+
+        if (!executableFile.exists()) {
+            logToConsole("Error: No se encuentra el ejecutable: " + executableFile.getAbsolutePath());
+            logToConsole("¿Has compilado el proyecto (F5)?");
+            showAlert("Archivo no encontrado", "Primero debes compilar el proyecto (F5).");
+            return;
+        }
+
+        logToConsole("Lanzando emulador con: " + executableFile.getAbsolutePath());
+
+        // Ejecutar en hilo aparte para no bloquear
+        new Thread(() -> {
+            Z80Launcher.launch(executableFile.getAbsolutePath());
+        }).start();
+    }
+
+    private void loadCustomFont(String fontName) {
+        try {
+            // La ruta debe ser relativa a la carpeta 'resources'
+            String fontPath = "/com/lazyzxsoftware/zxspectrumide/fonts/" + fontName;
+            var fontStream = getClass().getResourceAsStream(fontPath);
+            if (fontStream != null) {
+                Font.loadFont(fontStream, 14); // El tamaño 14 es solo para cargarla, luego el CSS decide
+                System.out.println("Fuente cargada: " + fontName);
+            } else {
+                System.err.println("No se pudo cargar la fuente: " + fontPath);
+            }
+        } catch (Exception e) {
+            System.err.println("Error cargando fuente " + fontName + ": " + e.getMessage());
+        }
     }
 }

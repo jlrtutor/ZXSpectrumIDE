@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.0.4--alpha-blue)
+![Version](https://img.shields.io/badge/version-0.0.5--alpha-blue)
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21-green)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
@@ -61,23 +61,23 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 
 ## Estado del Proyecto
 
-> **⚠️ En Desarrollo Activo** - Versión pre-pre-pre-pre-Alpha
+> **⚠️ En Desarrollo Activo** - Versión Alpha 0.0.5
 
 ### Completado
 
-- [x] Estructura base del proyecto
-- [x] Sistema de configuración persistente (JSON)
-- [x] Gestión de temas (arquitectura)
-- [x] Sistema de internacionalización (i18n)
-- [x] Interfaz principal con menús
+- [x] Estructura base del proyecto y persistencia (JSON).
+- [x] Gestión de temas (ThemeManager) con cambio en tiempo real.
+- [x] Sistema de internacionalización (i18n).
+- [x] **Interfaz Refactorizada**: Paneles redimensionables y barras ancladas.
+- [x] **Splash Screen**: Carga asíncrona optimizada.
 
 ### En Progreso
 
-- [x] Resaltado de sintaxis Z80
-- [x] Tabs múltiples ficheros
-- [ ] ThemeManager y archivos CSS
-- [ ] Editor de código básico
-- [ ] Integración con PASMO
+- [x] Resaltado de sintaxis Z80.
+- [x] Pestañas múltiples para archivos.
+- [x] Consola de salida integrada.
+- [ ] Autocompletado inteligente.
+- [x] Compilación directa con PASMO.
 
 ### Planificado
 
@@ -216,8 +216,8 @@ mensaje:
 - [ ] Navegación de código
 
 ### Fase 2: Compilación y Ejecución
-- [ ] Integración con PASMO
-- [ ] Integración con ZEsarUX
+- [x] Integración con PASMO
+- [x] Integración con ZEsarUX
 - [ ] Sistema de depuración
 
 ### Fase 3-5: Herramientas Visuales

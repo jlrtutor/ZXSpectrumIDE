@@ -8,8 +8,8 @@
 
 ### 1.1 Editor de Texto Base
 - [x] Implementar área de texto con RichTextFX
-- [ ] Sistema de pestañas para múltiples archivos
-- [ ] Guardar/Abrir archivos .asm
+- [x] Sistema de pestañas para múltiples archivos
+- [x] Guardar/Abrir archivos .asm
 - [ ] Soporte para codificación de texto (UTF-8)
 - [ ] Deshacer/Rehacer ilimitado
 - [ ] Portapapeles (Copiar/Cortar/Pegar)
@@ -367,7 +367,7 @@
     - [ ] Colores para sintaxis del editor
     - [ ] Colores de UI oscuros
 - [ ] Selector de tema en Configuración
-- [ ] Aplicación en tiempo real (sin reiniciar)
+- [x] Aplicación en tiempo real (sin reiniciar)
 - [ ] Persistencia de tema seleccionado
 
 ### 5.2 Sistema de Temas para Sintaxis
@@ -568,8 +568,8 @@
 - [ ] Disposición de ventanas personalizable
 - [ ] Barra de menús completa
 - [ ] Barra de herramientas con iconos
-- [ ] Barra de estado (info del proyecto)
-- [ ] Panel de salida/consola
+- [x] Barra de estado (info del proyecto)
+- [x] Panel de salida/consola
 - [ ] Panel de búsqueda global
 
 ### 8.2 Gestión de Proyectos Unificada
@@ -626,15 +626,16 @@
 
 ---
 
-## 10. Bugs
-🐛 BUG - Parpadeo en macOS al iniciar
-- La ventana hace "flick" al arrancar y al primer clic
-- Específico de macOS + JavaFX (?)
-- Posibles soluciones a investigar:
-    * Native macOS rendering settings
-    * Prism rendering engine configuration
-    * Timing de aplicación de CSS
-- Prioridad: BAJA (no afecta funcionalidad)
+## 10. Bugs 
+- [x] Parpadeo/Blanco en Splash Screen (Solucionado con Thread separado).
+- [x] Crash al cambiar tema (ClassCastException Solucionado).
+- [x] UI mal dimensionada al inicio (Solucionado con tamaño explícito).
+- [ ] BUG - Parpadeo en macOS al iniciar. La ventana hace "flick" al arrancar y al primer clic. Específico de macOS + JavaFX (?)
+  - Posibles soluciones a investigar:
+      * Native macOS rendering settings
+      * Prism rendering engine configuration
+      * Timing de aplicación de CSS
+  - Prioridad: BAJA (no afecta funcionalidad)
 
 ---
 
@@ -676,6 +677,13 @@
 - Herramientas integradas sin salir del IDE
 - Curva de aprendizaje amigable
 - Open source y extensible
+
+---
+
+## 🐛 BUGS RESUELTOS
+- [x] ClassCastException (VBox/HBox) al cambiar tema desde el menú.
+- [x] Splash Screen aparecía en blanco por bloqueo del hilo UI.
+- [x] La consola de depuración arrastraba la barra de estado al redimensionar.
 
 ---
 

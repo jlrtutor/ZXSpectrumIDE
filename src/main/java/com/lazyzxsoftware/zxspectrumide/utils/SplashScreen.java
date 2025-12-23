@@ -1,35 +1,36 @@
 package com.lazyzxsoftware.zxspectrumide.utils;
 
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-/**
- * Splash screen que se muestra al inicio de la aplicación
- */
 public class SplashScreen {
 
     private final Stage splashStage;
-    private final VBox root;
     private final Label statusLabel;
+    private final ProgressBar progressBar; // Útil tener referencia
 
     public SplashScreen() {
         splashStage = new Stage(StageStyle.UNDECORATED);
 
         // Layout principal
-        root = new VBox(20);
+        VBox root = new VBox(20); // Usamos variable local, no hace falta campo de clase
         root.setAlignment(Pos.CENTER);
+
+        // CORRECCIÓN CSS: Añadir 'px' al padding y asegurar sintaxis
         root.setStyle(
                 "-fx-background-color: linear-gradient(to bottom, #1a1e2e, #0f111a);" +
-                        "-fx-padding: 60;" +
+                        "-fx-padding: 60px;" +  // Importante: añadir unidades 'px'
                         "-fx-border-color: #80CBC4;" +
-                        "-fx-border-width: 2;"
+                        "-fx-border-width: 2px;"
         );
 
         // Logo/Título
@@ -53,9 +54,10 @@ public class SplashScreen {
         copyright.setStyle("-fx-text-fill: #546E7A;");
 
         // Barra de progreso
-        ProgressBar progressBar = new ProgressBar();
+        progressBar = new ProgressBar();
         progressBar.setPrefWidth(300);
-        progressBar.setStyle("-fx-accent: #80CBC4;");
+        // Estilo CSS para que la barra se vea bien sobre fondo oscuro
+        progressBar.setStyle("-fx-accent: #80CBC4; -fx-control-inner-background: #2b3040; -fx-text-box-border: transparent;");
 
         // Estado
         statusLabel = new Label("Iniciando...");
@@ -67,39 +69,46 @@ public class SplashScreen {
 
         // Crear escena
         Scene scene = new Scene(root, 500, 400);
+
+        // SEGURIDAD: Poner el fondo de la escena del mismo color oscuro
+        // Así, si el CSS del VBox falla, no se verá un recuadro blanco cegador.
+        scene.setFill(Color.web("#1a1e2e"));
+
         splashStage.setScene(scene);
         splashStage.centerOnScreen();
     }
 
-    /**
-     * Muestra el splash screen
-     */
     public void show() {
         splashStage.show();
+        // Forzar que se pinte inmediatamente (a veces ayuda en cargas rápidas)
         splashStage.toFront();
     }
 
-    /**
-     * Actualiza el mensaje de estado
-     */
+    // Aseguramos que la actualización de UI ocurra siempre en el hilo correcto
     public void updateStatus(String status) {
-        statusLabel.setText(status);
-    }
-
-    /**
-     * Cierra el splash sin animación
-     */
-    public void close(Runnable onFinished) {
-        splashStage.close();
-        if (onFinished != null) {
-            onFinished.run();
+        if (Platform.isFxApplicationThread()) {
+            statusLabel.setText(status);
+        } else {
+            Platform.runLater(() -> statusLabel.setText(status));
         }
     }
 
-    /**
-     * Obtiene el stage del splash
-     */
-    public Stage getStage() {
-        return splashStage;
+    public void close(Runnable onFinished) {
+        // Ejecutar el cierre en el hilo de FX
+        Platform.runLater(() -> {
+            splashStage.close();
+            if (onFinished != null) {
+                onFinished.run();
+            }
+        });
+    }
+
+    public void updateProgress(double progress) {
+        // Aseguramos que el cambio visual se haga en el hilo de JavaFX
+        if (Platform.isFxApplicationThread()) {
+            progressBar.setProgress(progress);
+        } else {
+            Platform.runLater(() -> progressBar.setProgress(progress));
+        }
     }
 }

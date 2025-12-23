@@ -229,7 +229,7 @@
 
 .styled-text-area .text {
     -fx-fill: #000000;
-    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-family: "Roboto Mono", "Consolas", "Monaco", "Courier New", monospace;
     -fx-font-size: 14px;
 }
 
@@ -241,7 +241,7 @@
 .lineno {
     -fx-background-color: #f5f5f5;
     -fx-text-fill: #999999;
-    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-family: "Roboto Mono", "Consolas", "Monaco", "Courier New", monospace;
     -fx-font-size: 13px;
     -fx-padding: 0 5 0 5;
 }
@@ -265,7 +265,8 @@
 
 .styled-text-area .comment {
     -fx-fill: #8C8C8C;
-    -fx-font-style: italic;
+    -fx-font-style: italic;    /* Cursiva */
+    -fx-font-weight: normal;   /* Sin negrita (Explícito) */
 }
 
 .styled-text-area .string {
@@ -306,4 +307,34 @@
     -fx-text-fill: #999999;
     -fx-font-style: italic;
     -fx-opacity: 0.6;
+}
+
+/* ============================================
+   CHECKBOXES
+   ============================================ */
+.check-box {
+    -fx-text-fill: #000000; /* Texto negro explícito */
+    -fx-font-size: 13px;
+}
+
+.check-box .box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #b0b0b0;
+    -fx-border-radius: 3px;
+}
+
+.check-box:focused .box {
+    -fx-border-color: #4A90E2;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #000000;
+}
+
+/* ============================================
+   CURSOR (Caret)
+   ============================================ */
+.styled-text-area .caret {
+    -fx-stroke: #4A90E2; /* Color de acento del tema (Azul) */
+    -fx-stroke-width: 2px; /* Más grueso */
 }

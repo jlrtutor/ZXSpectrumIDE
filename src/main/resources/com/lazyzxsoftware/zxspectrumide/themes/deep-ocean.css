@@ -230,7 +230,7 @@
 
 .styled-text-area .text {
     -fx-fill: #B0BEC5;
-    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-family: "Roboto Mono", "Consolas", "Monaco", "Courier New", monospace;
     -fx-font-size: 14px;
 }
 
@@ -242,7 +242,7 @@
 .lineno {
     -fx-background-color: #0F111A;
     -fx-text-fill: #546E7A;
-    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-family: "Roboto Mono", "Consolas", "Monaco", "Courier New", monospace;
     -fx-font-size: 13px;
     -fx-padding: 0 5 0 5;
 }
@@ -264,8 +264,9 @@
 }
 
 .styled-text-area .comment {
-    -fx-fill: #697098;
-    -fx-font-style: italic;
+    -fx-fill: #697098;         /* Color azulado grisáceo */
+    -fx-font-style: italic;    /* Cursiva */
+    -fx-font-weight: normal;   /* Sin negrita (Explícito) */
 }
 
 .styled-text-area .string {
@@ -306,4 +307,34 @@
     -fx-text-fill: #546E7A;
     -fx-font-style: italic;
     -fx-opacity: 0.6;
+}
+
+/* ============================================
+   CHECKBOXES
+   ============================================ */
+.check-box {
+    -fx-text-fill: #B0BEC5; /* Texto gris claro explícito */
+    -fx-font-size: 13px;
+}
+
+.check-box .box {
+    -fx-background-color: #1A1E2E;
+    -fx-border-color: #2C3E50;
+    -fx-border-radius: 3px;
+}
+
+.check-box:focused .box {
+    -fx-border-color: #80CBC4;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #80CBC4; /* Marca color Cyan/Agua */
+}
+
+/* ============================================
+   CURSOR (Caret)
+   ============================================ */
+.styled-text-area .caret {
+    -fx-stroke: #80CBC4; /* Color de acento del tema (Cyan) */
+    -fx-stroke-width: 2px; /* Más grueso */
 }

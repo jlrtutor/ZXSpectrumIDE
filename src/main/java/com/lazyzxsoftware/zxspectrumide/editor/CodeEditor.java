@@ -39,12 +39,22 @@ public class CodeEditor extends BorderPane {
         // Añadir al layout
         setCenter(codeArea);
 
-        // Esperar a que esté en una escena antes de configurar resaltado
+        // Esperar a que esté en una escena
         sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
-                // Aplicar la stylesheet de la escena al CodeArea
-                codeArea.getStylesheets().clear();
-                codeArea.getStylesheets().addAll(newScene.getStylesheets());
+                // Función para actualizar estilos
+                Runnable updateStyles = () -> {
+                    codeArea.getStylesheets().setAll(newScene.getStylesheets());
+                };
+
+                // 1. Aplicar estilos iniciales
+                updateStyles.run();
+
+                // 2. IMPORTANTE: Escuchar cambios en los estilos de la escena (Cambio de Tema)
+                // Esto permite que el editor reaccione cuando ThemeManager cambia el CSS global
+                newScene.getStylesheets().addListener((javafx.collections.ListChangeListener.Change<? extends String> c) -> {
+                    updateStyles.run();
+                });
 
                 if (syntaxHighlightingEnabled) {
                     setupSyntaxHighlighting();
