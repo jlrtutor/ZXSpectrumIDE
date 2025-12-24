@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.0.5--alpha-blue)
+![Version](https://img.shields.io/badge/version-0.0.6--alpha-blue)
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![JavaFX](https://img.shields.io/badge/JavaFX-21-green)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen)
@@ -43,11 +43,11 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 
 | Herramienta           | Descripción |
 |-----------------------|-------------|
+| **Depurador Visual** | Conexión con ZEsarUX, visualización de registros, stack y desensamblado con resaltado de ejecución. |
 | **Editor de Sprites** | Creación y edición de gráficos con soporte completo de atributos ZX Spectrum |
-| **Editor de Mapas**   | Diseño de niveles con sistema de capas y propiedades de tiles |
-| **Editor de Música**  | Compositor chiptune con emulación AY-3-8912 |
-| **Compilador PASMO**  | Integración completa con ensamblador |
-| **Emulador ZEsarUX**  | Ejecución y depuración directa |
+| **Editor de Mapas** | Diseño de niveles con sistema de capas y propiedades de tiles |
+| **Editor de Música** | Compositor chiptune con emulación AY-3-8912 |
+| **Compilador PASMO** | Integración completa con ensamblador |
 
 ### 🎨 Temas y Personalización
 
@@ -61,7 +61,7 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 
 ## Estado del Proyecto
 
-> **⚠️ En Desarrollo Activo** - Versión Alpha 0.0.5
+> **⚠️ En Desarrollo Activo** - Versión Alpha 0.0.6
 
 ### Completado
 
@@ -70,6 +70,7 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 - [x] Sistema de internacionalización (i18n).
 - [x] **Interfaz Refactorizada**: Paneles redimensionables y barras ancladas.
 - [x] **Splash Screen**: Carga asíncrona optimizada.
+- [x] **Depuración**: Conexión robusta ZRCP, control de flujo (Paso/Run/Pause), y visualización de estado de CPU en tiempo real.
 
 ### En Progreso
 
@@ -78,6 +79,7 @@ Proporcionar a los desarrolladores retro y entusiastas del ZX Spectrum un IDE mo
 - [x] Consola de salida integrada.
 - [ ] Autocompletado inteligente.
 - [x] Compilación directa con PASMO.
+- [ ] Integración de emulador nativo (JSpeccy) para eliminar dependencias externas.
 
 ### Planificado
 
@@ -102,7 +104,6 @@ Ver [`PROGRESS.md`](PROGRESS.md) para el estado detallado del desarrollo.
 
 - **[PASMO](http://pasmo.speccy.org/)** - Ensamblador Z80 multiplataforma
 - **[ZEsarUX](https://github.com/chernandezba/zesarux)** - Emulador de ZX Spectrum con capacidades de depuración
-- En un futuro puede que se implementen otras alternativas (???)
 ---
 
 ## Instalación
@@ -117,7 +118,7 @@ Ver [`PROGRESS.md`](PROGRESS.md) para el estado detallado del desarrollo.
 ### Clonar el Repositorio
 
 ```bash
-git clone https://github.com/jlrtutor/ZXSpectrumIDE.git
+git clone [https://github.com/jlrtutor/ZXSpectrumIDE.git](https://github.com/jlrtutor/ZXSpectrumIDE.git)
 cd ZXSpectrumIDE
 ```
 
@@ -206,7 +207,7 @@ mensaje:
 ### Fase 0: Fundamentos (En progreso)
 - [x] Configuración del proyecto
 - [x] Sistema de configuración
-- [ ] Sistema de temas
+- [x] Sistema de temas
 - [ ] Sistema de internacionalización
 
 ### Fase 1: Editor de Código
@@ -218,7 +219,8 @@ mensaje:
 ### Fase 2: Compilación y Ejecución
 - [x] Integración con PASMO
 - [x] Integración con ZEsarUX
-- [ ] Sistema de depuración
+- [x] Sistema de depuración básico
+- [ ] Sistema de depuración avanzado
 
 ### Fase 3-5: Herramientas Visuales
 - [ ] Editor de sprites
