@@ -14,6 +14,7 @@ module com.lazyzxsoftware.zxspectrumide {
 
     // Gson
     requires com.google.gson;
+    requires java.desktop;
 
     // Exports
     exports com.lazyzxsoftware.zxspectrumide;

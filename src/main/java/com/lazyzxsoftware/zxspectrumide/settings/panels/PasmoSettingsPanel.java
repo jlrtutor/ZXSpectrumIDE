@@ -4,6 +4,8 @@ import com.lazyzxsoftware.zxspectrumide.config.AppConfig;
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
 import com.lazyzxsoftware.zxspectrumide.settings.SettingsPanel;
 import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.scene.layout.HBox;
@@ -20,6 +22,9 @@ public class PasmoSettingsPanel extends SettingsPanel {
         Label pathLabel = new Label("Ruta del ejecutable (pasmo):");
         pathField = new TextField();
         pathField.setPromptText("Ej: /usr/bin/pasmo o C:\\Tools\\pasmo.exe");
+
+        pathField.setMaxWidth(Double.MAX_VALUE);
+        GridPane.setHgrow(pathField, Priority.ALWAYS);
 
         Button browseBtn = new Button("...");
         browseBtn.setOnAction(e -> browsePasmo());

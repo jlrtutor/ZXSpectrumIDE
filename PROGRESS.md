@@ -32,6 +32,11 @@
 - [ ] Integración completa compilador PASMO.
 - [x] Integración emulador ZEsarUX.
 
+### Fase 2.5: Depurador Visual (feature/zesarux-advanced)
+- [ ] Arquitectura de conexión ZRCP (`ZesaruxBridge`)
+- [ ] Diseño de UI del Debugger (SplitPanes y Tablas)
+- [ ] Implementación de comandos de control (Step, Run, Break)
+
 ## 📝 PENDIENTE
 
 - Fase 3: Editor de sprites

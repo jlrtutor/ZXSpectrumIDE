@@ -6,6 +6,7 @@ import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
 import com.lazyzxsoftware.zxspectrumide.ui.SettingsDialog;
+import com.lazyzxsoftware.zxspectrumide.ui.DebugPanel;
 import com.lazyzxsoftware.zxspectrumide.utils.SplashScreen;
 import com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler;
 import java.io.BufferedReader;
@@ -16,6 +17,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -47,6 +49,10 @@ public class Main extends Application {
         // 1. Mostrar Splash Screen
         SplashScreen splash = new SplashScreen();
         splash.show();
+
+        // --- CÓDIGO NUEVO PARA EL ICONO ---
+        loadAppIcon(primaryStage);
+        // ----------------------------------
 
         // 2. Tarea de carga en segundo plano (Hilo separado)
         new Thread(() -> {
@@ -111,6 +117,50 @@ public class Main extends Application {
         }).start();
     }
 
+    private void loadAppIcon(Stage stage) {
+        try {
+            // CORRECCIÓN: Usar la ruta real de tu estructura de paquetes
+            String iconPath = "/com/lazyzxsoftware/zxspectrumide/icons/app_icon.png";
+
+            // 1. Cargar para la ventana (JavaFX)
+            var iconStream = getClass().getResourceAsStream(iconPath);
+            if (iconStream != null) {
+                Image fxImage = new Image(iconStream);
+                stage.getIcons().add(fxImage);
+            } else {
+                System.err.println("⚠️ No se encontró el icono en: " + iconPath);
+            }
+
+            // 2. Cargar para el DOCK de macOS (AWT)
+            if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                java.net.URL iconURL = getClass().getResource(iconPath);
+
+                if (iconURL != null) {
+                    // Inicializar Toolkit de AWT (necesario a veces para que Taskbar despierte)
+                    java.awt.Toolkit.getDefaultToolkit();
+
+                    java.awt.Image awtImage = java.awt.Toolkit.getDefaultToolkit().getImage(iconURL);
+                    try {
+                        java.awt.Taskbar taskbar = java.awt.Taskbar.getTaskbar();
+                        if (taskbar.isSupported(java.awt.Taskbar.Feature.ICON_IMAGE)) {
+                            taskbar.setIconImage(awtImage);
+                            System.out.println("✅ Icono del Dock establecido correctamente.");
+                        }
+                    } catch (UnsupportedOperationException e) {
+                        System.err.println("La API Taskbar no está soportada en este sistema.");
+                    } catch (SecurityException e) {
+                        System.err.println("Error de seguridad al acceder a Taskbar.");
+                    }
+                } else {
+                    System.err.println("⚠️ URL del icono es NULL para AWT.");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error fatal cargando icono: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     private void initializeMainUI(SplashScreen splash) {
         splash.updateStatus("Construyendo interfaz gráfica...");
 
@@ -142,21 +192,40 @@ public class Main extends Application {
         });
         createNewTab(null); // Pestaña inicial
 
-        // 4. Área de Consola
+        // 4. Área de Consola (Mantenemos tu configuración actual)
         consoleArea = new TextArea();
         consoleArea.setEditable(false);
         consoleArea.setWrapText(true);
         consoleArea.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 12px;");
         consoleArea.setPromptText("Salida del compilador...");
 
-        // 5. Barra de Estado
-        createStatusBar(); // Inicializa la variable 'statusBarBox'
+        // --- NUEVO: SISTEMA DE PESTAÑAS INFERIOR ---
+        TabPane bottomTabPane = new TabPane();
+        bottomTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE); // No permitir cerrar
 
-        // 6. SplitPane (Divide Editor y Consola)
+        // Pestaña 1: Consola (Salida estándar)
+        Tab consoleTab = new Tab("Terminal / Salida");
+        consoleTab.setContent(consoleArea);
+
+        // Pestaña 2: Depurador (Tu nuevo panel visual)
+        Tab debugTab = new Tab("Debugger (ZEsarUX)");
+        DebugPanel debugPanel = new DebugPanel(); // Instanciamos tu clase
+        debugTab.setContent(debugPanel);
+
+        // Añadimos las pestañas
+        bottomTabPane.getTabs().addAll(consoleTab, debugTab);
+        // --------------------------------------------
+
+        // 5. Barra de Estado (Igual que antes)
+        if (statusBarBox == null) createStatusBar();
+
+        // 6. SplitPane (Divide Editor y EL NUEVO PANEL DE PESTAÑAS)
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        splitPane.getItems().addAll(tabPane, consoleArea);
-        splitPane.setDividerPositions(0.8); // 80% para editor
+
+        // CAMBIO: En vez de consoleArea, metemos bottomTabPane
+        splitPane.getItems().addAll(tabPane, bottomTabPane);
+        splitPane.setDividerPositions(0.75); // 75% para editor, 25% para herramientas
 
         // 7. Montar el layout principal
         root.setCenter(splitPane);      // Centro: Editor + Consola
@@ -396,9 +465,37 @@ public class Main extends Application {
         MenuItem run = new MenuItem(i18nManager.get("menu.tools.run"));
         run.setAccelerator(new KeyCodeCombination(KeyCode.F6));
         run.setOnAction(e -> {
-            updateStatus(i18nManager.get("app.running"));
-            runCurrentFile();
+            CodeEditor editor = getCurrentEditor();
+
+            if (editor == null || editor.getCurrentFile() == null) {
+                updateStatus("⚠️ No hay archivo para ejecutar. Guarda primero.");
+                return;
+            }
+
+            File sourceFile = editor.getCurrentFile();
+            File parentDir = sourceFile.getParentFile();
+            String fileName = sourceFile.getName();
+            String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+
+            // --- CORRECCIÓN: Apuntar a la carpeta build ---
+            // Construimos la ruta: carpeta_actual/build/archivo.tap
+            File buildDir = new File(parentDir, "build");
+            File tapFile = new File(buildDir, baseName + ".tap");
+            // ----------------------------------------------
+
+            System.out.println("[DEBUG] Buscando TAP en: " + tapFile.getAbsolutePath());
+
+            if (tapFile.exists()) {
+                updateStatus("🚀 Lanzando emulador con: " + tapFile.getName());
+                Z80Launcher.launch(tapFile.getAbsolutePath());
+            } else {
+                updateStatus("⚠️ Archivo no encontrado en /build. Compila primero.");
+            }
         });
+
+        // +++ PRUEBA DE DEBUGGER +++
+        MenuItem debugTestItem = new MenuItem("🛠 Probar Conexión Debugger");
+        debugTestItem.setOnAction(e -> testDebuggerConnection());
 
         MenuItem spriteEditor = new MenuItem(i18nManager.get("menu.tools.sprite_editor"));
         MenuItem mapEditor = new MenuItem(i18nManager.get("menu.tools.map_editor"));
@@ -407,6 +504,7 @@ public class Main extends Application {
         menuTools.getItems().addAll(
                 compile,
                 run,
+                debugTestItem,
                 new SeparatorMenuItem(),
                 spriteEditor,
                 mapEditor,
@@ -822,5 +920,37 @@ public class Main extends Application {
         } catch (Exception e) {
             System.err.println("Error cargando fuente " + fontName + ": " + e.getMessage());
         }
+    }
+
+    private void testDebuggerConnection() {
+        consoleArea.appendText("\n[DEBUG] Intentando conectar con ZEsarUX...\n");
+
+        // Usamos un hilo para no congelar la UI al conectar
+        new Thread(() -> {
+            var bridge = com.lazyzxsoftware.zxspectrumide.integration.ZesaruxBridge.getInstance();
+
+            if (bridge.connect()) {
+                Platform.runLater(() -> consoleArea.appendText("[DEBUG] ¡CONECTADO! Enviando comando 'about'...\n"));
+
+                // Enviar comando de prueba
+                bridge.sendCommand("about").thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        consoleArea.appendText("[DEBUG] Respuesta recibida:\n" + response + "\n");
+                        consoleArea.appendText("------------------------------------------------\n");
+                    });
+
+                    // Desconectamos tras la prueba
+                    bridge.disconnect();
+                });
+
+            } else {
+                Platform.runLater(() -> {
+                    consoleArea.appendText("[ERROR] No se pudo conectar.\n");
+                    consoleArea.appendText("Asegúrate de que:\n");
+                    consoleArea.appendText("1. ZEsarUX está abierto.\n");
+                    consoleArea.appendText("2. Se lanzó con --enable-remotectrl (usa el botón Ejecutar del IDE).\n");
+                });
+            }
+        }).start();
     }
 }

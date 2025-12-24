@@ -68,7 +68,7 @@
     -fx-background-radius: 3px;
     -fx-text-fill: #000000;
     -fx-padding: 5 15 5 15;
-    -fx-min-width: -fx-pref-width;
+    -fx-min-width: 30px;
 }
 
 .button:hover {

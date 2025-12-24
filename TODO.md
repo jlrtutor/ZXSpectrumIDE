@@ -95,15 +95,27 @@
 - [ ] Generación de listado con direcciones
 - [ ] Símbolos y mapa de memoria
 
-### 1.11 Integración con Emulador (ZEsarUX)
-- [ ] Ejecutar en emulador (F6)
-- [ ] Configurar ruta de ZEsarUX
-- [ ] Pasar parámetros al emulador
-- [ ] Debug: breakpoints
-- [ ] Debug: step over/into/out
-- [ ] Debug: inspección de registros
-- [ ] Debug: inspección de memoria
-- [ ] Debug: pila de llamadas
+### 1.11 Integración Avanzada ZEsarUX (Debugger Visual)
+- [ ] **Protocolo ZRCP (Backend)**
+    - [ ] Cliente TCP/Socket para conectar a localhost:10000
+    - [ ] Parser de respuestas ZRCP (texto a objetos Java)
+    - [ ] Sistema de "polling" o eventos para actualizar estado
+- [ ] **Panel de Registros (Registers View)**
+    - [ ] Grid con valores Hex (AF, BC, DE, HL, IX, IY, SP, PC)
+    - [ ] Visualización de Flags (SZ5H3PNC) interactiva
+    - [ ] Edición de valores de registro "al vuelo"
+- [ ] **Panel de Desensamblado (Disassembly View)**
+    - [ ] Tabla virtual infinita (Address, Opcode, Instruction)
+    - [ ] Sincronización con el PC actual (Auto-scroll)
+    - [ ] Toggle Breakpoints con click en margen
+- [ ] **Panel de Memoria (Hex Editor)**
+    - [ ] Vista de volcado de memoria (Hex + ASCII)
+    - [ ] Navegación a dirección específica
+- [ ] **Panel de Pila (Stack View)**
+    - [ ] Visualización de los top 10-20 valores del Stack
+- [ ] **Controles de Depuración**
+    - [ ] Botones: Step Into, Step Over, Run, Pause
+    - [ ] Atajos de teclado estándar (F5, F10, F11)
 
 ### 1.12 Gestión de Proyectos
 - [ ] Crear nuevo proyecto
