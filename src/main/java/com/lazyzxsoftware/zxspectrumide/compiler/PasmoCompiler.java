@@ -53,7 +53,7 @@ public class PasmoCompiler implements Compiler {
         String extension = ".tap";
         if ("hex".equals(format)) extension = ".hex";
         if ("bin".equals(format)) extension = ".bin";
-        File outputFile = new File(outputDir, baseName + extension);
+        File outputFile = new File(outputDir, tapeName + extension);
 
         List<String> command = new ArrayList<>();
         command.add(pasmoPath);

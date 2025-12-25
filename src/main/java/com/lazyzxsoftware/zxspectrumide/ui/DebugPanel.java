@@ -4,7 +4,6 @@ import com.lazyzxsoftware.zxspectrumide.integration.ZesaruxBridge;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 
@@ -18,13 +17,6 @@ public class DebugPanel extends BorderPane {
     private TextArea disassemblyArea;
     private ListView<String> stackList;
 
-    // --- BOTONES (Variables de clase para controlar su estado) ---
-    private Button btnConnect;
-    private Button btnPause;
-    private Button btnStep;
-    private Button btnContinue;
-    private Button btnGoToStart;
-
     // Etiquetas de Registros
     private Label regAF, regBC, regDE, regHL, regPC, regSP, regIX, regIY;
     private Label flagsLabel;
@@ -34,6 +26,8 @@ public class DebugPanel extends BorderPane {
     private String currentSP = "";
 
     // Lógica
+    // (Mantenemos el bridge por si quieres reutilizar la lógica de lectura de registros más adelante,
+    // aunque ahora no haya botones para accionarlo desde aquí)
     private final ZesaruxBridge bridge;
     private ScheduledExecutorService poller;
     private volatile boolean isPollingActive = false;
@@ -44,78 +38,8 @@ public class DebugPanel extends BorderPane {
     }
 
     private void initUI() {
-        ToolBar toolbar = new ToolBar();
-
-        // Inicialización de botones
-        btnConnect = new Button("Conectar");
-
-        btnPause = new Button("Pausar (F8)");
-        btnPause.setStyle("-fx-base: #ffdddd; -fx-text-fill: #8a0000;");
-
-        btnStep = new Button("Paso (F10)");
-        btnStep.setDisable(true); // Desactivado por defecto (hasta que pausamos)
-
-        btnContinue = new Button("Continuar (F5)");
-
-        btnGoToStart = new Button("Ir a Inicio ($8000)");
-        btnGoToStart.setStyle("-fx-base: #ddffdd; -fx-text-fill: #005500;");
-
-        // --- ACCIONES DE LOS BOTONES ---
-
-        btnConnect.setOnAction(e -> toggleConnection());
-
-        // PAUSAR: Parar y actualizar UNA VEZ -> ACTIVAR BOTÓN PASO
-        btnPause.setOnAction(e -> {
-            stopPolling();
-            sendCommand("enter-cpu-step").thenRun(() -> {
-                Platform.runLater(() -> {
-                    btnStep.setDisable(false); // ACTIVAR PASO
-                    refreshState();
-                });
-            });
-        });
-
-        // PASO: Avanzar uno y actualizar -> EL BOTÓN SIGUE ACTIVO
-        btnStep.setOnAction(e -> {
-            stopPolling();
-            sendCommand("cpu-step").thenRun(this::refreshState);
-        });
-
-        // CONTINUAR: Correr y esperar -> DESACTIVAR BOTÓN PASO
-        btnContinue.setOnAction(e -> {
-            stopPolling();
-            disassemblyArea.deselect();
-
-            // Desactivamos Paso inmediatamente porque va a correr
-            btnStep.setDisable(true);
-
-            // Enviamos 'run' y esperamos (la promesa no volverá hasta que pare)
-            bridge.sendCommand("run").thenRun(() -> {
-                // Cuando el 'run' termina (se ha parado por breakpoint/usuario),
-                // volvemos a activar el botón Paso y actualizamos la UI
-                Platform.runLater(() -> {
-                    btnStep.setDisable(false); // REACTIVAR PASO
-                    refreshState();
-                });
-            });
-        });
-
-        // IR A INICIO: Corre hasta 8000 -> DESACTIVAR y LUEGO REACTIVAR
-        btnGoToStart.setOnAction(e -> {
-            stopPolling();
-            disassemblyArea.deselect();
-            btnStep.setDisable(true); // DESACTIVAR (Corriendo...)
-
-            bridge.sendCommand("run 8000").thenRun(() -> {
-                Platform.runLater(() -> {
-                    btnStep.setDisable(false); // REACTIVAR (Llegó a destino)
-                    refreshState();
-                });
-            });
-        });
-
-        toolbar.getItems().addAll(btnConnect, new Separator(), btnPause, btnStep, btnContinue, new Separator(), btnGoToStart);
-        setTop(toolbar);
+        // --- 1. SE HAN ELIMINADO LOS BOTONES DE CONTROL (ZESARUX) Y EL TOOLBAR ---
+        // (Conectar, Pausar, Continuar, Paso, Ir a Inicio 'run 8000')
 
         // --- 2. PANELES (SPLIT) ---
         SplitPane mainSplit = new SplitPane();
@@ -124,7 +48,7 @@ public class DebugPanel extends BorderPane {
         disassemblyArea = new TextArea();
         disassemblyArea.setFont(Font.font("Monospaced", 12));
         disassemblyArea.setEditable(false);
-        disassemblyArea.setText("Esperando conexión... \n(Pulsa Conectar y luego Pausar)");
+        disassemblyArea.setText("Panel de Depuración\n(Controles manuales desactivados)");
 
         // Estilo CSS para selección visible (azul intenso)
         disassemblyArea.setStyle(
@@ -151,37 +75,9 @@ public class DebugPanel extends BorderPane {
         setCenter(mainSplit);
 
         // --- 3. ATAJOS DE TECLADO ---
+        // Eliminados los atajos F5, F8, F10 que controlaban el puente ZEsarUX directamente.
         this.setFocusTraversable(true);
         this.setOnMouseClicked(e -> this.requestFocus());
-        this.setOnKeyPressed(event -> {
-            switch (event.getCode()) {
-                case F10: case PERIOD:
-                    if (!btnStep.isDisabled()) { // Solo si está habilitado
-                        stopPolling();
-                        sendCommand("cpu-step").thenRun(this::refreshState);
-                    }
-                    break;
-
-                case F5: // Continuar
-                    stopPolling();
-                    disassemblyArea.deselect();
-                    btnStep.setDisable(true);
-                    bridge.sendCommand("run").thenRun(() -> Platform.runLater(() -> {
-                        btnStep.setDisable(false);
-                        refreshState();
-                    }));
-                    break;
-
-                case F8: // Pausar
-                    stopPolling();
-                    sendCommand("enter-cpu-step").thenRun(() -> Platform.runLater(() -> {
-                        btnStep.setDisable(false);
-                        refreshState();
-                    }));
-                    break;
-            }
-            event.consume();
-        });
     }
 
     private VBox createRegistersPane() {
@@ -237,44 +133,8 @@ public class DebugPanel extends BorderPane {
         return l;
     }
 
-    // --- GESTIÓN DE CONEXIÓN ---
+    // --- MÉTODOS DE ACTUALIZACIÓN (Se mantienen por si se reutilizan externamente) ---
 
-    private void toggleConnection() {
-        if (!bridge.isConnected()) {
-            // --- CONECTAR ---
-            if (bridge.connect()) {
-                btnConnect.setText("Desconectar");
-                btnStep.setDisable(true); // Al conectar asumimos que corre
-
-                disassemblyArea.setText("✅ Conexión establecida.\n\n" +
-                        "El emulador está en ejecución.\n" +
-                        "Pulsa PAUSAR (F8) para detener la CPU y ver el código.");
-            }
-        } else {
-            // --- DESCONECTAR (Salida Limpia) ---
-            stopPolling();
-            btnStep.setDisable(true);
-
-            // 1. Mandamos 'run' para liberar al emulador (SIN ESPERAR / Fire & Forget)
-            // Esto asegura que el emulador no se quede 'tonto' esperando.
-            bridge.sendCommandNoWait("run");
-
-            // 2. Esperamos un instante (200ms) para que el mensaje salga y cortamos
-            new java.util.Timer().schedule(new java.util.TimerTask() {
-                @Override public void run() {
-                    bridge.disconnect();
-
-                    Platform.runLater(() -> {
-                        btnConnect.setText("Conectar");
-                        disassemblyArea.setText("Desconectado.\nDale a Conectar para empezar.");
-                        System.out.println("[DEBUG] Desconexión limpia completada.");
-                    });
-                }
-            }, 200);
-        }
-    }
-
-    // Este es el método que te daba error: Asegúrate de tenerlo aquí
     private void stopPolling() {
         if (poller != null) {
             poller.shutdownNow();
@@ -283,9 +143,9 @@ public class DebugPanel extends BorderPane {
         isPollingActive = false;
     }
 
-    // --- COMUNICACIÓN Y PARSEO ---
-
-    private void refreshState() {
+    // Nota: Este método ya no es llamado por botones internos, pero podría ser útil
+    // si decides actualizar la vista desde fuera.
+    public void refreshState() {
         if (!bridge.isConnected()) return;
 
         bridge.sendCommand("get-registers")
@@ -357,8 +217,6 @@ public class DebugPanel extends BorderPane {
 
         if (currentPC == null || currentPC.isEmpty()) return;
 
-        System.out.println("[DEBUG UI] Buscando PC: " + currentPC);
-
         String[] lines = cleanText.split("\n");
         int charIndex = 0;
         boolean found = false;
@@ -379,7 +237,6 @@ public class DebugPanel extends BorderPane {
                 }
 
                 if (exactMatch) {
-                    System.out.println("[DEBUG UI] ¡ENCONTRADO! en línea: " + line);
                     int start = disassemblyArea.getText().indexOf(line, charIndex);
                     if (start == -1) start = charIndex;
 
@@ -406,7 +263,6 @@ public class DebugPanel extends BorderPane {
     // Helper para enviar comandos (devuelve Future)
     private CompletableFuture<Void> sendCommand(String cmd) {
         return bridge.sendCommand(cmd).thenAccept(res -> {
-            System.out.println("[DEBUG CMD] " + cmd + " -> " + res);
             if (res.startsWith("Error")) {
                 Platform.runLater(() -> System.err.println("Error ZEsarUX: " + res));
             }

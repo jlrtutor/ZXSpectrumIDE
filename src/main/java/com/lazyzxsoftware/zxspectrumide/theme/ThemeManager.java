@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Gestor de temas de la aplicación
- * Permite cambiar entre tema claro y oscuro
+ * Gestor de temas de la aplicación.
+ * Permite cambiar entre tema claro y oscuro y notifica a todas las escenas registradas.
  */
 public class ThemeManager {
 
@@ -17,9 +17,9 @@ public class ThemeManager {
     private Theme currentTheme;
 
     // Rutas de los archivos CSS
+    // Asegúrate de que estos archivos existen en src/main/resources/...
     private static final String LIGHT_THEME_CSS = "/com/lazyzxsoftware/zxspectrumide/themes/light.css";
     private static final String DARK_THEME_CSS = "/com/lazyzxsoftware/zxspectrumide/themes/deep-ocean.css";
-
 
     public enum Theme {
         LIGHT("light", "Tema Claro", LIGHT_THEME_CSS),
@@ -60,12 +60,21 @@ public class ThemeManager {
     private ThemeManager() {
         registeredScenes = new ArrayList<>();
 
-        // Cargar tema desde configuración
-        String savedTheme = ConfigManager.getInstance().getConfig().getTheme();
+        // Cargar tema guardado en configuración (o usar default)
+        String savedTheme = "light";
+        try {
+            // Intentamos leer de ConfigManager si existe y no es nulo
+            if (ConfigManager.getInstance() != null && ConfigManager.getInstance().getConfig() != null) {
+                savedTheme = ConfigManager.getInstance().getConfig().getTheme();
+            }
+        } catch (Exception e) {
+            System.err.println("Advertencia: No se pudo cargar configuración de tema: " + e.getMessage());
+        }
+
         currentTheme = Theme.fromId(savedTheme);
     }
 
-    public static ThemeManager getInstance() {
+    public static synchronized ThemeManager getInstance() {
         if (instance == null) {
             instance = new ThemeManager();
         }
@@ -73,89 +82,76 @@ public class ThemeManager {
     }
 
     /**
-     * Registra una escena para aplicar temas
+     * Método de conveniencia para aplicar tema a una escena (alias de registerScene).
+     * Usado por Main.java.
+     */
+    public void applyTheme(Scene scene) {
+        registerScene(scene);
+    }
+
+    /**
+     * Registra una escena para que reciba actualizaciones de tema dinámicas.
      */
     public void registerScene(Scene scene) {
         if (!registeredScenes.contains(scene)) {
             registeredScenes.add(scene);
+            // Aplicar el tema actual inmediatamente
             applyThemeToScene(scene, currentTheme);
         }
     }
 
     /**
-     * Cambia el tema de la aplicación
+     * Cambia el tema global de la aplicación.
      */
     public void setTheme(Theme theme) {
         if (this.currentTheme != theme) {
             this.currentTheme = theme;
 
-            // Aplicar a todas las escenas registradas
+            // Aplicar a todas las ventanas/escenas abiertas
             for (Scene scene : registeredScenes) {
                 applyThemeToScene(scene, theme);
             }
 
-            // Guardar en configuración
-            ConfigManager.getInstance().getConfig().setTheme(theme.getId());
-            ConfigManager.getInstance().saveConfig();
+            // Guardar preferencia
+            try {
+                if (ConfigManager.getInstance() != null) {
+                    ConfigManager.getInstance().getConfig().setTheme(theme.getId());
+                    ConfigManager.getInstance().saveConfig();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             System.out.println("Tema cambiado a: " + theme.getDisplayName());
         }
     }
 
     private void applyThemeToScene(Scene scene, Theme theme) {
-        // Limpiar estilos anteriores
+        // Limpiar estilos anteriores para no acumular basura
         scene.getStylesheets().clear();
 
         try {
-            // Intentar cargar el recurso CSS
+            // Cargar CSS
             var resource = getClass().getResource(theme.getCssPath());
 
             if (resource == null) {
-                System.err.println("ERROR: No se encontró el archivo CSS: " + theme.getCssPath());
-                System.err.println("Verifica que el archivo existe en src/main/resources");
-
-                // Intentar con ruta alternativa
-                String alternativePath = theme.getCssPath().replace("/com/lazyzxsoftware/zxspectrumide/", "/");
-                resource = getClass().getResource(alternativePath);
-
-                if (resource == null) {
-                    System.err.println("Tampoco se encontró en: " + alternativePath);
-                    return;
-                } else {
-                    System.out.println("Encontrado en ruta alternativa: " + alternativePath);
-                }
+                System.err.println("❌ ERROR CRÍTICO: No se encuentra el CSS: " + theme.getCssPath());
+                return;
             }
 
-            String cssPath = resource.toExternalForm();
-            scene.getStylesheets().add(cssPath);
-            System.out.println("Tema aplicado a escena: " + theme.getDisplayName());
-            System.out.println("Archivo CSS: " + cssPath);
+            String cssUrl = resource.toExternalForm();
+            scene.getStylesheets().add(cssUrl);
 
         } catch (Exception e) {
-            System.err.println("Error al aplicar tema: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error aplicando CSS: " + e.getMessage());
         }
     }
 
-    /**
-     * Obtiene el tema actual
-     */
     public Theme getCurrentTheme() {
         return currentTheme;
     }
 
-    /**
-     * Alterna entre tema claro y oscuro
-     */
     public void toggleTheme() {
-        Theme newTheme = (currentTheme == Theme.LIGHT) ? Theme.DARK : Theme.LIGHT;
-        setTheme(newTheme);
-    }
-
-    /**
-     * Obtiene todos los temas disponibles
-     */
-    public Theme[] getAvailableThemes() {
-        return Theme.values();
+        setTheme(currentTheme == Theme.LIGHT ? Theme.DARK : Theme.LIGHT);
     }
 }

@@ -28,20 +28,22 @@ public class AppConfig {
     private boolean autoSave = true;
     private int autoSaveInterval = 30;
 
-    // --- Configuración de PASMO ---
+    // --- Configuración de PASMO (Compilador) ---
     private String pasmoPath = "";
     private String pasmoFormat = "tapbas"; // "tapbas", "tap", "bin", "hex"
     private boolean pasmoDebug = false;
-    // NUEVO: Ruta de salida personalizada (si está vacía, usa "build" relativo)
-    private String buildPath = "";
+    private String buildPath = ""; // Ruta de salida personalizada
 
-    // --- Configuración de ZEsarUX ---
+    // --- Configuración de ZEsarUX / Emulador ---
     private String emulatorPath = "";
     private String emulatorMachine = "Spectrum 48k";
 
-    // --- Proyecto (Historial) ---
+    // --- Proyecto e Historial ---
     private String lastProjectPath = "";
     private boolean openLastProjectOnStartup = true;
+
+    // Campo necesario para FileManager (recordar dónde abrir el FileChooser)
+    private String lastDirectory = "";
 
     // ==========================================
     // GETTERS Y SETTERS
@@ -108,6 +110,9 @@ public class AppConfig {
     public boolean isPasmoDebug() { return pasmoDebug; }
     public void setPasmoDebug(boolean pasmoDebug) { this.pasmoDebug = pasmoDebug; }
 
+    public String getBuildPath() { return buildPath; }
+    public void setBuildPath(String buildPath) { this.buildPath = buildPath; }
+
     // --- ZEsarUX ---
     public String getEmulatorPath() { return emulatorPath; }
     public void setEmulatorPath(String emulatorPath) { this.emulatorPath = emulatorPath; }
@@ -122,6 +127,7 @@ public class AppConfig {
     public boolean isOpenLastProjectOnStartup() { return openLastProjectOnStartup; }
     public void setOpenLastProjectOnStartup(boolean openLastProjectOnStartup) { this.openLastProjectOnStartup = openLastProjectOnStartup; }
 
-    public String getBuildPath() { return buildPath; }
-    public void setBuildPath(String buildPath) { this.buildPath = buildPath; }
+    // --- Historial de Directorios (Añadido) ---
+    public String getLastDirectory() { return lastDirectory; }
+    public void setLastDirectory(String lastDirectory) { this.lastDirectory = lastDirectory; }
 }

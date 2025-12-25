@@ -15,6 +15,8 @@ module com.lazyzxsoftware.zxspectrumide {
     // Gson
     requires com.google.gson;
     requires java.desktop;
+    requires javafx.web;
+    requires jdk.jsobject;
 
     // Exports
     exports com.lazyzxsoftware.zxspectrumide;
@@ -25,4 +27,7 @@ module com.lazyzxsoftware.zxspectrumide {
 
     // Opens para i18n (ResourceBundle)
     opens com.lazyzxsoftware.zxspectrumide.i18n;
+
+    // Hay que ABRIR el paquete webview para que el navegador pueda llamar a los métodos Java
+    opens com.lazyzxsoftware.zxspectrumide.ui.webview to javafx.web;
 }

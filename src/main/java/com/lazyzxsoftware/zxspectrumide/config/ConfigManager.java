@@ -9,8 +9,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Gestor de configuración de la aplicación
- * Guarda y carga la configuración en formato JSON
+ * Gestor de configuración de la aplicación.
+ * Guarda y carga la configuración en formato JSON usando GSON.
  */
 public class ConfigManager {
 
@@ -20,25 +20,28 @@ public class ConfigManager {
     private final Path configPath;
 
     private ConfigManager() {
+        // Inicializamos GSON con formato "bonito" para que el JSON sea legible
         gson = new GsonBuilder().setPrettyPrinting().create();
 
-        // Ruta de configuración: ~/.zxide/config.json
+        // Definimos la ruta de configuración: ~/.zxide/config.json
         String userHome = System.getProperty("user.home");
         Path zxideDir = Paths.get(userHome, ".zxide");
         configPath = zxideDir.resolve("config.json");
 
-        // Crear directorio si no existe
+        // Crear directorio .zxide si no existe
         try {
-            Files.createDirectories(zxideDir);
+            if (!Files.exists(zxideDir)) {
+                Files.createDirectories(zxideDir);
+            }
         } catch (IOException e) {
             System.err.println("Error al crear directorio de configuración: " + e.getMessage());
         }
 
-        // Cargar configuración
+        // Cargar configuración al iniciar
         loadConfig();
     }
 
-    public static ConfigManager getInstance() {
+    public static synchronized ConfigManager getInstance() {
         if (instance == null) {
             instance = new ConfigManager();
         }
@@ -46,12 +49,12 @@ public class ConfigManager {
     }
 
     /**
-     * Obtiene la configuración actual
+     * Obtiene el objeto de configuración actual.
+     * Si por algún motivo es null, crea uno nuevo para evitar NullPointerException.
      */
     public AppConfig getConfig() {
-        // Verificación de seguridad
         if (config == null) {
-            System.err.println("ADVERTENCIA: config era null en getConfig(). Creando nueva configuración.");
+            System.err.println("ADVERTENCIA: config era null en getConfig(). Restaurando valores por defecto.");
             config = new AppConfig();
             saveConfig();
         }
@@ -59,57 +62,57 @@ public class ConfigManager {
     }
 
     /**
-     * Carga la configuración desde el archivo
+     * Carga la configuración desde el disco.
      */
     private void loadConfig() {
         if (Files.exists(configPath)) {
             try (Reader reader = Files.newBufferedReader(configPath)) {
                 AppConfig loadedConfig = gson.fromJson(reader, AppConfig.class);
 
-                // Verificar que la carga fue exitosa
                 if (loadedConfig != null) {
                     config = loadedConfig;
                     System.out.println("Configuración cargada desde: " + configPath);
                 } else {
-                    System.err.println("Error: archivo de configuración vacío o corrupto");
+                    System.err.println("Error: archivo de configuración vacío o corrupto. Usando defaults.");
                     config = new AppConfig();
-                    saveConfig(); // Guardar configuración por defecto
+                    saveConfig();
                 }
             } catch (IOException e) {
-                System.err.println("Error al cargar configuración: " + e.getMessage());
-                config = new AppConfig(); // Usar configuración por defecto
-                saveConfig(); // Guardar configuración por defecto
+                System.err.println("Error al leer configuración: " + e.getMessage());
+                config = new AppConfig(); // Fallback
             }
         } else {
-            System.out.println("Archivo de configuración no encontrado. Usando valores por defecto.");
+            System.out.println("Archivo de configuración no encontrado. Creando nuevo.");
             config = new AppConfig();
-            saveConfig(); // Guardar la configuración por defecto
+            saveConfig();
         }
 
-        // IMPORTANTE: Verificación de seguridad
+        // Doble verificación de seguridad
         if (config == null) {
-            System.err.println("ADVERTENCIA: config es null después de loadConfig(). Creando configuración por defecto.");
             config = new AppConfig();
         }
     }
 
     /**
-     * Guarda la configuración actual en el archivo
+     * Guarda la configuración actual en el archivo JSON.
      */
     public void saveConfig() {
+        if (config == null) return;
+
         try (Writer writer = Files.newBufferedWriter(configPath)) {
             gson.toJson(config, writer);
-            System.out.println("Configuración guardada en: " + configPath);
+            // System.out.println("Configuración guardada."); // Comentado para no saturar logs
         } catch (IOException e) {
-            System.err.println("Error al guardar configuración: " + e.getMessage());
+            System.err.println("Error grave al guardar configuración: " + e.getMessage());
         }
     }
 
     /**
-     * Restaura la configuración por defecto
+     * Restaura la configuración de fábrica.
      */
     public void resetToDefaults() {
         config = new AppConfig();
         saveConfig();
+        System.out.println("Configuración restablecida a valores por defecto.");
     }
 }
