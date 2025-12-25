@@ -41,13 +41,16 @@
 - [x] **Control**: Botones de ejecución conectados (Resume, Pause, Step).
 - [x] **Visualización**: Ventana de registros (AF, BC, DE, HL...) y Shadow Registers actualizados en tiempo real.
 
-## 🔄 EN PROGRESO
-
 ### Fase 4: Herramientas de Depuración Avanzadas
-- [ ] **Desensamblador en Tiempo Real**: Mostrar código ASM ejecutado en la ventana de debug.
-- [ ] **Visor de Memoria**: Hex View con capacidad de edición (POKE).
+- [x] **Desensamblador en Tiempo Real**:
+    - Decodificación de instrucciones Z80.
+    - Scroll infinito (0000-FFFF) con caché inteligente.
+    - Seguimiento automático del PC (Auto-scroll).
+- [x] **Visor de Memoria**:
+    - Hex View completo (64KB).
+    - Navegación "Ir a dirección".
+    - Lectura directa de RAM mediante inyección en JSSpeccy (Monkey Patch).
 - [ ] **Breakpoints**: Sistema visual para detener la ejecución en líneas concretas.
-
 ## 📝 PENDIENTE
 
 - Fase 5: Editor de sprites (Gráficos y Atributos)

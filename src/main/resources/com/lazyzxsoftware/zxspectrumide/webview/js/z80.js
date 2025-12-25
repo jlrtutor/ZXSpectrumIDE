@@ -2157,6 +2157,8 @@ regs[${rF}] = sz53pTable[regs[${rA}]];`;
 	var self = {};
 
 	${setUpStateJS}
+	
+	self.memory = memory;
 
 	self.requestInterrupt = function() {
 		interruptPending = true;

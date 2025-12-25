@@ -88,4 +88,32 @@ public class DebugWindowManager {
             win.updateRegisters(af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc);
         }
     }
+
+    public void updateDebugInfo(int af, int bc, int de, int hl,
+                                int af_, int bc_, int de_, int hl_,
+                                int ix, int iy, int sp, int pc,
+                                byte[] memoryWindow) {
+
+        // 1. Actualizar registros (Si la ventana está abierta)
+        updateRegisterInfo(af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc);
+
+        // 2. Actualizar Desensamblador (CORREGIDO)
+        if (openWindows.containsKey("Debugger Principal")) {
+            Stage stage = openWindows.get("Debugger Principal");
+            if (stage.getScene() != null && stage.getScene().getRoot() instanceof MainDebuggerWindow) {
+                MainDebuggerWindow win = (MainDebuggerWindow) stage.getScene().getRoot();
+                // Este método lo crearemos ahora mismo en el paso 2
+                win.updateDisassembly(pc, memoryWindow);
+            }
+        }
+    }
+
+    public void updateMemoryView(int address, byte[] data) {
+        if (openWindows.containsKey("Visor de Memoria")) {
+            Stage stage = openWindows.get("Visor de Memoria");
+            if (stage.getScene() != null && stage.getScene().getRoot() instanceof MemoryWindow) {
+                ((MemoryWindow) stage.getScene().getRoot()).updateMemory(address, data);
+            }
+        }
+    }
 }

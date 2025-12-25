@@ -34,12 +34,13 @@
     - [x] Registros principales (AF, BC, DE, HL, PC, SP)
     - [x] Registros alternativos (Shadow Registers)
     - [x] Flags (F)
-- [ ] **Desensamblador (Disassembly View)**
-    - [ ] Decodificar bytes en memoria a mnemónicos Z80
-    - [ ] Sincronización visual con el PC actual (Flecha/Resaltado)
-- [ ] **Visor de Memoria**
-    - [ ] Volcado Hexadecimal
-    - [ ] Edición de memoria
+- [x] **Desensamblador (Disassembly View)**
+    - [x] Decodificar bytes en memoria a mnemónicos Z80
+    - [x] Sincronización visual con el PC actual (Flecha/Resaltado)
+    - [x] Scroll completo de 64KB
+- [x] **Visor de Memoria**
+    - [x] Volcado Hexadecimal
+    - [x] Edición de memoria (Lectura implementada, escritura pendiente)
 
 ### 1.12 Gestión de Proyectos
 - [x] Estructura de compilación relativa (`/build` junto al archivo fuente)

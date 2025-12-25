@@ -174,4 +174,49 @@ public class EmulatorWebView extends StackPane {
                     .updateRegisterInfo(af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc);
         });
     }
+
+    // Método extendido que recibe también la memoria
+    public void updateDebugDataFull(int af, int bc, int de, int hl,
+                                    int af_, int bc_, int de_, int hl_,
+                                    int ix, int iy, int sp, int pc,
+                                    String memoryBase64) {
+        Platform.runLater(() -> {
+            byte[] memoryData = new byte[0];
+            if (memoryBase64 != null && !memoryBase64.isEmpty()) {
+                try {
+                    memoryData = Base64.getDecoder().decode(memoryBase64);
+                } catch (Exception e) {
+                    System.err.println("Error decodificando memoria debug: " + e.getMessage());
+                }
+            }
+
+            // Enviamos todo al Gestor de Ventanas de Depuración
+            com.lazyzxsoftware.zxspectrumide.ui.windows.DebugWindowManager.getInstance()
+                    .updateDebugInfo(af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc, memoryData);
+        });
+    }
+
+    // 1. Pedir memoria a JS
+    public void fetchMemory(int address, int size) {
+        if (!isEmulatorReady) return;
+        Platform.runLater(() -> {
+            webEngine.executeScript("readMemoryBlock(" + address + ", " + size + ")");
+        });
+    }
+
+    // 2. Recibir respuesta de JS (Callback)
+    public void onMemoryRead(int startAddress, String base64Data) {
+        Platform.runLater(() -> {
+            byte[] data = new byte[0];
+            try {
+                data = Base64.getDecoder().decode(base64Data);
+            } catch (Exception e) {
+                System.err.println("Error decodificando memoria: " + e.getMessage());
+            }
+
+            // Enviamos los datos al gestor de ventanas
+            com.lazyzxsoftware.zxspectrumide.ui.windows.DebugWindowManager.getInstance()
+                    .updateMemoryView(startAddress, data);
+        });
+    }
 }

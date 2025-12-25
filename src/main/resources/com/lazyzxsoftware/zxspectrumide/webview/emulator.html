@@ -6,34 +6,48 @@
     <style>
         body {
             background-color: #2b2b2b;
-            margin: 0; padding: 0;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; color: #0f0; font-family: monospace;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #0f0;
+            font-family: monospace;
             overflow: hidden;
         }
 
         #game-container {
-            width: 640px; height: 480px;
+            width: 640px;
+            height: 480px;
             border: 20px solid #101010;
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             background: #000;
-            display: flex; justify-content: center; align-items: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         canvas {
             image-rendering: pixelated;
-            width: 100% !important; height: 100% !important;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .status-msg {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.8); color: white; padding: 5px;
-            font-size: 12px; pointer-events: none; z-index: 100;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
             display: none;
         }
     </style>
 
-    <script src="js/z80.js"></script>
     <script src="js/jsspeccy-core.min.js"></script>
     <script src="js/autoloaders.js"></script>
 
@@ -48,11 +62,38 @@
 
 <script>
     var emulator = null;
-    var currentRomUrl = null;
+
+    // =========================================================================
+    // 💉 EL INTERCEPTOR (Monkey Patch)
+    // =========================================================================
+    // Este bloque intercepta la creación del procesador Z80 dentro de JSSpeccy
+    // para capturar y exponer el objeto 'memory' antes de que quede oculto.
+    // Esto es necesario para que el Debugger y el Visor de Memoria funcionen.
+    if (window.JSSpeccy && window.JSSpeccy.Z80) {
+        var originalZ80 = window.JSSpeccy.Z80;
+
+        window.JSSpeccy.Z80 = function(opts) {
+            // 1. Creamos la instancia original
+            var z80Instance = originalZ80(opts);
+
+            // 2. Le inyectamos la memoria pública si está disponible en las opciones
+            if (opts.memory) {
+                z80Instance.memory = opts.memory;
+                // console.log("🔓 Memoria RAM desbloqueada para acceso externo.");
+            }
+            return z80Instance;
+        };
+    } else {
+        console.error("❌ No se pudo aplicar el parche de memoria (JSSpeccy no cargado).");
+    }
+
+    // =========================================================================
+    // 1. PUENTE Y ARRANQUE
+    // =========================================================================
 
     function initBridge() {
         if (window.javaApp) {
-            log("Conectado. Solicitando ROM...");
+            // log("Conectado a Java.");
             window.javaApp.requestRomLoad();
         } else {
             setTimeout(initBridge, 200);
@@ -61,31 +102,32 @@
 
     function startEmulatorWithRom(romBase64) {
         try {
-            currentRomUrl = "data:application/octet-stream;base64," + romBase64;
-
             var opts = {
                 'autostart': true,
                 'scaleFactor': 2,
                 'machine': '48',
-                'romURL': currentRomUrl
+                'romURL': "data:application/octet-stream;base64," + romBase64
             };
 
             emulator = JSSpeccy('speccy', opts);
 
-            log("Sistema listo.");
-            if(window.javaApp) {
-                window.javaApp.log("🚀 Emulador Inicializado.");
-                // --- AVISAMOS A JAVA DE QUE YA PUEDE MANDAR EL TAPE ---
-                window.javaApp.onEmulatorReady();
+            // Verificación para Java
+            if (emulator && emulator.getZ80 && emulator.getZ80().memory) {
+                if(window.javaApp) window.javaApp.log("✅ Acceso a RAM nativa: OK");
             }
+
+            if(window.javaApp) window.javaApp.onEmulatorReady();
 
         } catch (e) {
             error("Error arranque: " + e);
         }
     }
 
+    // =========================================================================
+    // 2. CARGA DE PROGRAMAS (.TAP)
+    // =========================================================================
+
     function loadProgramFromJava(base64Data, filename) {
-        log("📥 Cargando: " + filename);
         try {
             var binaryString = window.atob(base64Data);
             var len = binaryString.length;
@@ -97,29 +139,119 @@
             var tapeUrl = URL.createObjectURL(blob);
 
             if (emulator) {
-                // Truco para despertar el AudioContext si estaba en pausa
+                // Asegurar foco y audio
                 window.focus();
                 if (emulator.audio && emulator.audio.context && emulator.audio.context.state === 'suspended') {
                     emulator.audio.context.resume();
                 }
 
+                // Carga con auto-arranque (autoloaders.js escribirá LOAD "")
                 emulator.loadFromUrl(tapeUrl, {'autoload': true});
-                if(window.javaApp) window.javaApp.log("✅ Programa inyectado.");
-            } else {
-                error("Emulador no listo (esto no debería pasar con la cola de Java).");
             }
-
         } catch (e) {
             error("Error carga: " + e.message);
         }
     }
 
-    // ... (Mantén el resto de funciones log, error, debugTest igual que antes) ...
-    // ... Asegúrate de que debugTest y sendReport sigan ahí ...
+    // =========================================================================
+    // 3. HERRAMIENTAS DE DEPURACIÓN (Lectura de Memoria)
+    // =========================================================================
 
-    // --- COPIA AQUÍ EL RESTO DE FUNCIONES DE TU VERSIÓN ANTERIOR ---
-    // (log, error, sendReport, debugTest, window.onerror, window.onload)
-    // -----------------------------------------------------------------
+    // Función segura para leer un byte gracias al interceptor
+    function safeReadByte(addr) {
+        try {
+            if (emulator && emulator.getZ80 && emulator.getZ80().memory) {
+                return emulator.getZ80().memory.read(addr & 0xFFFF);
+            }
+        } catch (e) {}
+        return 0;
+    }
+
+    // A. Llamado periodicamente para actualizar registros y desensamblador
+    function debugTest() {
+        var report = { status: "fail" };
+        try {
+            if (emulator && emulator.getZ80) {
+                var z80 = emulator.getZ80();
+                report.status = "success";
+
+                // Registros principales
+                report.pc = z80.getPC();
+                report.sp = z80.getSP();
+                report.af = z80.getAF();
+                report.bc = z80.getBC();
+                report.de = z80.getDE();
+                report.hl = z80.getHL();
+                report.ix = z80.getIX();
+                report.iy = z80.getIY();
+
+                // Registros alternativos
+                if(z80.getAF_Alt) report.af_ = z80.getAF_Alt();
+                if(z80.getBC_Alt) report.bc_ = z80.getBC_Alt();
+                if(z80.getDE_Alt) report.de_ = z80.getDE_Alt();
+                if(z80.getHL_Alt) report.hl_ = z80.getHL_Alt();
+
+                // --- CAMBIO: EXTRAER TODA LA MEMORIA (64KB) ---
+                // Usamos safeReadByte para evitar errores
+                var memDump = [];
+                // 65536 bytes = 64KB completo
+                for (var i = 0; i < 65536; i++) {
+                    memDump.push(safeReadByte(i));
+                }
+                report.memoryBase64 = window.btoa(String.fromCharCode.apply(null, new Uint8Array(memDump)));
+            }
+        } catch (e) {}
+
+        sendReport(report);
+    }
+
+    // B. Llamado bajo demanda para el Visor de Memoria
+    function readMemoryBlock(address, size) {
+        try {
+            var memDump = [];
+            var safeAddr = Math.max(0, Math.min(65535, address));
+
+            for (var i = 0; i < size; i++) {
+                memDump.push(safeReadByte(safeAddr + i));
+            }
+
+            var b64 = window.btoa(String.fromCharCode.apply(null, new Uint8Array(memDump)));
+
+            if (window.javaApp) {
+                window.javaApp.onMemoryRead(safeAddr, b64);
+            }
+        } catch (e) {
+            if(window.javaApp) window.javaApp.log("Error leyendo bloque memoria: " + e);
+        }
+    }
+
+    // =========================================================================
+    // 4. UTILIDADES
+    // =========================================================================
+
+    function sendReport(report) {
+        if (window.javaApp && report.status === "success") {
+            try {
+                // Intentamos usar el método completo (con memoria)
+                if (window.javaApp.updateDebugDataFull) {
+                    window.javaApp.updateDebugDataFull(
+                        report.af, report.bc, report.de, report.hl,
+                        report.af_, report.bc_, report.de_, report.hl_,
+                        report.ix, report.iy, report.sp, report.pc,
+                        report.memoryBase64 || ""
+                    );
+                } else {
+                    // Fallback
+                    window.javaApp.updateDebugData(
+                        report.af, report.bc, report.de, report.hl,
+                        report.af_, report.bc_, report.de_, report.hl_,
+                        report.ix, report.iy, report.sp, report.pc
+                    );
+                }
+            } catch(e) {}
+        }
+    }
+
     function log(msg) {
         var el = document.getElementById('status');
         el.innerText = msg;
@@ -139,40 +271,6 @@
     window.onerror = function(msg) { error("JS Global: " + msg); };
     window.onload = function() { setTimeout(initBridge, 100); };
 
-    function sendReport(report) {
-        if (window.javaApp && report.status === "success") {
-            window.javaApp.updateDebugData(
-                report.af || 0, report.bc || 0, report.de || 0, report.hl || 0,
-                report.af_ || 0, report.bc_ || 0, report.de_ || 0, report.hl_ || 0,
-                report.ix || 0, report.iy || 0, report.sp || 0, report.pc || 0
-            );
-        }
-    }
-
-    function debugTest() {
-        var report = { status: "fail" };
-        try {
-            if (emulator && emulator.getZ80) {
-                var z80 = emulator.getZ80();
-                if (z80) {
-                    report.status = "success";
-                    report.pc = z80.getPC();
-                    report.sp = z80.getSP();
-                    report.af = z80.getAF();
-                    report.bc = z80.getBC();
-                    report.de = z80.getDE();
-                    report.hl = z80.getHL();
-                    report.ix = z80.getIX();
-                    report.iy = z80.getIY();
-                    if(z80.getAF_Alt) report.af_ = z80.getAF_Alt();
-                    if(z80.getBC_Alt) report.bc_ = z80.getBC_Alt();
-                    if(z80.getDE_Alt) report.de_ = z80.getDE_Alt();
-                    if(z80.getHL_Alt) report.hl_ = z80.getHL_Alt();
-                }
-            }
-        } catch (e) {}
-        sendReport(report);
-    }
 </script>
 </body>
 </html>
