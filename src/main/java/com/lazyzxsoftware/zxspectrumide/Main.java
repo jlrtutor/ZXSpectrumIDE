@@ -6,6 +6,7 @@ import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.managers.WindowManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
+import com.lazyzxsoftware.zxspectrumide.ui.FileExplorer;
 import com.lazyzxsoftware.zxspectrumide.ui.SettingsDialog;
 import com.lazyzxsoftware.zxspectrumide.utils.SplashScreen;
 import com.lazyzxsoftware.zxspectrumide.utils.PlatformUtils;
@@ -14,6 +15,8 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -22,6 +25,10 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.stage.DirectoryChooser;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.fxmisc.richtext.CodeArea;
 
@@ -32,15 +39,23 @@ import java.util.ResourceBundle;
 
 public class Main extends Application {
 
+    private Label lblProject;
+    private Button btnCollapse;
     private Stage primaryStage;
     private BorderPane rootLayout;
     private CodeEditor codeEditor;
     private FileManager fileManager;
     private I18nManager i18n;
+    private SplitPane splitPane;
+    private FileExplorer fileExplorer;
+    private VBox sidebarContainer;
+    private boolean sidebarVisible = true;
+    private double lastDividerPosition = 0.2;
+    private javafx.scene.layout.HBox sidebarHeader;
+    private javafx.scene.layout.Region spacer;
 
     @Override
     public void start(Stage primaryStage) {
-        // Para desarrollo rápido, iniciamos directo:
         initMainStage(primaryStage);
     }
 
@@ -55,7 +70,6 @@ public class Main extends Application {
 
         // Inicializar componentes principales
         codeEditor = new CodeEditor();
-        // fileManager necesita el CodeArea interno, no el editor completo
         fileManager = new FileManager(primaryStage, codeEditor);
 
         initRootLayout();
@@ -66,13 +80,11 @@ public class Main extends Application {
         // Manejo de cierre de la aplicación
         primaryStage.setOnCloseRequest(event -> {
             if (fileManager.checkUnsavedChanges()) {
-                // Cerrar también el emulador al salir
                 WindowManager.getInstance().closeEmulator();
-
                 Platform.exit();
                 System.exit(0);
             } else {
-                event.consume(); // Cancelar cierre si el usuario cancela guardar
+                event.consume();
             }
         });
 
@@ -82,19 +94,164 @@ public class Main extends Application {
 
     private void initRootLayout() {
         rootLayout = new BorderPane();
+        rootLayout.setTop(createMenuBar());
 
-        // Barra de Menú
-        MenuBar menuBar = createMenuBar();
-        rootLayout.setTop(menuBar);
+        // --- Inicialización de componentes (igual que antes) ---
+        fileExplorer = new FileExplorer(fileManager);
 
-        // --- CORRECCIÓN AQUÍ ---
-        // Antes: rootLayout.setCenter(codeEditor.getView());
-        // Ahora: Usamos codeEditor directamente porque CodeEditor extends BorderPane
-        rootLayout.setCenter(codeEditor);
+        sidebarHeader = new javafx.scene.layout.HBox();
+        sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
 
-        // Crear escena
+        lblProject = new Label("PROYECTO");
+        lblProject.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px;");
+
+        btnCollapse = new Button("<<");
+        btnCollapse.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 10px; -fx-cursor: hand; -fx-font-weight: bold; -fx-padding: 2; -fx-min-width: 25;");
+        btnCollapse.setOnAction(e -> toggleSidebar());
+
+        spacer = new javafx.scene.layout.Region();
+        javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        sidebarHeader.getChildren().addAll(lblProject, spacer, btnCollapse);
+
+        sidebarContainer = new javafx.scene.layout.VBox(sidebarHeader, fileExplorer);
+        javafx.scene.layout.VBox.setVgrow(fileExplorer, javafx.scene.layout.Priority.ALWAYS);
+        sidebarContainer.setMinWidth(0);
+
+        // --- SPLITPANE ---
+        splitPane = new SplitPane();
+
+        // CORRECCIÓN: Al inicio SOLO añadimos el editor. El sidebar NO EXISTE visualmente.
+        splitPane.getItems().add(codeEditor);
+
+        rootLayout.setCenter(splitPane);
+
         Scene scene = new Scene(rootLayout, 1024, 768);
         primaryStage.setScene(scene);
+    }
+
+    private void toggleSidebar() {
+        if (sidebarVisible) {
+            // --- COLAPSAR ---
+            lastDividerPosition = splitPane.getDividerPositions()[0];
+
+            // 1. Ocultar elementos innecesarios
+            fileExplorer.setVisible(false);
+            fileExplorer.setManaged(false);
+
+            lblProject.setVisible(false);
+            lblProject.setManaged(false);
+
+            spacer.setVisible(false);
+            spacer.setManaged(false);
+
+            // 2. Configurar cabecera para modo "barra vertical"
+            btnCollapse.setText(">>");
+            // TRUCO: Quitamos el padding lateral del HBox para ganar espacio
+            sidebarHeader.setStyle("-fx-padding: 5 0 5 0; -fx-background-color: #3c3f41; -fx-alignment: center;");
+            sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER);
+
+            // 3. Ajustar ancho (Damos 50px para ir sobrados y que se vea bien)
+            sidebarContainer.setMinWidth(50);
+            sidebarContainer.setMaxWidth(50);
+
+            sidebarVisible = false;
+        } else {
+            // --- EXPANDIR ---
+            // 1. Restaurar anchos
+            sidebarContainer.setMinWidth(0);
+            sidebarContainer.setMaxWidth(Double.MAX_VALUE);
+
+            // 2. Restaurar elementos
+            fileExplorer.setVisible(true);
+            fileExplorer.setManaged(true);
+
+            lblProject.setVisible(true);
+            lblProject.setManaged(true);
+
+            spacer.setVisible(true);
+            spacer.setManaged(true);
+
+            // 3. Restaurar cabecera y estilos originales
+            btnCollapse.setText("<<");
+            // Restauramos el padding original (5px en todos lados) y la alineación
+            sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
+            sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+            // 4. Restaurar posición divisor
+            splitPane.setDividerPositions(lastDividerPosition);
+
+            sidebarVisible = true;
+        }
+    }
+
+    private void openProjectAction() {
+        // Antes de elegir carpeta, intentamos cerrar lo actual
+        if (!fileManager.closeAllFiles()) return;
+
+        javafx.stage.DirectoryChooser directoryChooser = new javafx.stage.DirectoryChooser();
+        directoryChooser.setTitle("Seleccionar carpeta del proyecto");
+
+        File selectedDirectory = directoryChooser.showDialog(primaryStage);
+
+        if (selectedDirectory != null) {
+            // Ya hemos cerrado los archivos arriba, así que configuramos directamente
+            fileExplorer.setProjectRoot(selectedDirectory);
+            lblProject.setText(selectedDirectory.getName().toUpperCase());
+
+            ensureSidebarExpanded();
+
+            if (!splitPane.getItems().contains(sidebarContainer)) {
+                splitPane.getItems().add(0, sidebarContainer);
+                splitPane.setDividerPositions(0.2);
+            }
+
+            fileManager.detectAndOpenMainFile(selectedDirectory);
+
+            System.out.println("Proyecto abierto: " + selectedDirectory.getAbsolutePath());
+        }
+    }
+
+    /**
+     * Resetea el sidebar a su estado visual "Desplegado" (ancho normal, contenidos visibles)
+     */
+    private void ensureSidebarExpanded() {
+        // Restaurar propiedades visuales
+        sidebarContainer.setMinWidth(0);
+        sidebarContainer.setMaxWidth(Double.MAX_VALUE);
+
+        fileExplorer.setVisible(true);
+        fileExplorer.setManaged(true);
+        lblProject.setVisible(true);
+        lblProject.setManaged(true);
+        spacer.setVisible(true);
+        spacer.setManaged(true);
+
+        btnCollapse.setText("<<");
+        sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
+        sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        sidebarVisible = true; // Actualizar flag interno
+    }
+
+    private void closeProjectAction() {
+        // 1. Verificar cambios pendientes antes de cerrar
+        if (!fileManager.checkUnsavedChanges()) return;
+
+        // 2. Cerrar todos los archivos abiertos
+        fileManager.closeAllFiles();
+
+        // 3. Limpiar el explorador (opcional, visual)
+        fileExplorer.setProjectRoot(null);
+        lblProject.setText("PROYECTO");
+
+        // 4. ELIMINAR EL PANEL LATERAL DE LA VISTA
+        // Si el sidebar está en el splitpane, lo quitamos
+        if (splitPane.getItems().contains(sidebarContainer)) {
+            splitPane.getItems().remove(sidebarContainer);
+        }
+
+        System.out.println("Proyecto cerrado.");
     }
 
     private MenuBar createMenuBar() {
@@ -103,19 +260,21 @@ public class Main extends Application {
         // --- 1. MENÚ ARCHIVO ---
         Menu menuFile = new Menu(i18n.get("menu.file"));
 
+        // Usamos SHORTCUT_DOWN para que sea Ctrl en Windows y Command (⌘) en Mac
         MenuItem itemNew = new MenuItem(i18n.get("menu.file.new"));
-        itemNew.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
+        itemNew.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
         itemNew.setOnAction(e -> fileManager.newFile());
 
         MenuItem itemOpen = new MenuItem(i18n.get("menu.file.open"));
-        itemOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
+        itemOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
         itemOpen.setOnAction(e -> fileManager.openFile());
 
         MenuItem itemSave = new MenuItem(i18n.get("menu.file.save"));
-        itemSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
+        itemSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         itemSave.setOnAction(e -> fileManager.saveFile());
 
         MenuItem itemSaveAs = new MenuItem(i18n.get("menu.file.saveas"));
+        itemSaveAs.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         itemSaveAs.setOnAction(e -> fileManager.saveFileAs());
 
         MenuItem itemExit = new MenuItem(i18n.get("menu.file.exit"));
@@ -126,78 +285,140 @@ public class Main extends Application {
             }
         });
 
-        menuFile.getItems().addAll(itemNew, itemOpen, new SeparatorMenuItem(), itemSave, itemSaveAs, new SeparatorMenuItem(), itemExit);
+        MenuItem itemNewProject = new MenuItem(i18n.get("menu.file.new_project"));
+        // Por simplicidad, "Nuevo Proyecto" hace lo mismo que abrir: elegir una carpeta vacía
+        itemNewProject.setOnAction(e -> openProjectAction());
 
-        // --- 2. MENÚ EDITAR ---
+        MenuItem itemOpenProject = new MenuItem(i18n.get("menu.file.open_project"));
+        itemOpenProject.setOnAction(e -> openProjectAction());
+
+        MenuItem itemCloseProject = new MenuItem("Cerrar Proyecto");
+        itemCloseProject.setOnAction(e -> closeProjectAction());
+
+        menuFile.getItems().addAll(
+                itemNew,
+                itemOpen,
+                itemSave,
+                itemSaveAs,
+                new SeparatorMenuItem(),
+                itemNewProject,
+                itemOpenProject,
+                itemCloseProject,
+                new SeparatorMenuItem(),
+                itemExit);
+
+        // --- 2. MENÚ EDITAR (IMPLEMENTADO AHORA) ---
         Menu menuEdit = new Menu(i18n.get("menu.edit"));
+
+        MenuItem itemUndo = new MenuItem(i18n.get("menu.edit.undo"));
+        itemUndo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
+        itemUndo.setOnAction(e -> codeEditor.undo());
+
+        MenuItem itemRedo = new MenuItem(i18n.get("menu.edit.redo"));
+        itemRedo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        itemRedo.setOnAction(e -> codeEditor.redo());
+
+        MenuItem itemCut = new MenuItem(i18n.get("menu.edit.cut"));
+        itemCut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
+        itemCut.setOnAction(e -> codeEditor.cut());
+
+        MenuItem itemCopy = new MenuItem(i18n.get("menu.edit.copy"));
+        itemCopy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+        itemCopy.setOnAction(e -> codeEditor.copy());
+
+        MenuItem itemPaste = new MenuItem(i18n.get("menu.edit.paste"));
+        itemPaste.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
+        itemPaste.setOnAction(e -> codeEditor.paste());
+
+        // --- SUBMENÚ BUSCAR (NUEVO) ---
+        Menu menuFind = new Menu("Buscar"); // Podrías añadir i18n key: menu.edit.find_menu
+
+        MenuItem itemFind = new MenuItem("Buscar...");
+        itemFind.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+        itemFind.setOnAction(e -> new com.lazyzxsoftware.zxspectrumide.ui.FindReplaceDialog(codeEditor).show(false));
+
+        MenuItem itemReplace = new MenuItem("Reemplazar...");
+        itemReplace.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
+        itemReplace.setOnAction(e -> new com.lazyzxsoftware.zxspectrumide.ui.FindReplaceDialog(codeEditor).show(true));
+
+        menuFind.getItems().addAll(itemFind, itemReplace);
+        // ------------------------------
+
+        MenuItem itemSelectAll = new MenuItem(i18n.get("menu.edit.select_all"));
+        itemSelectAll.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN));
+        itemSelectAll.setOnAction(e -> codeEditor.selectAll());
+
+        menuEdit.getItems().addAll(
+                itemUndo, itemRedo,
+                new SeparatorMenuItem(),
+                itemCut, itemCopy, itemPaste,
+                new SeparatorMenuItem(),
+                menuFind, // Añadimos el submenú aquí
+                new SeparatorMenuItem(),
+                itemSelectAll
+        );
+
+        // --- MENÚ VER ---
+        Menu menuView = new Menu(i18n.get("menu.view")); // Asegúrate de tener esta clave o usa "Ver" string
+
+        MenuItem itemToggleSidebar = new MenuItem("Alternar Explorador de Archivos");
+        itemToggleSidebar.setAccelerator(new KeyCodeCombination(KeyCode.E, KeyCombination.SHORTCUT_DOWN)); // Ctrl+E / Cmd+E
+        itemToggleSidebar.setOnAction(e -> toggleSidebar());
+
+        menuView.getItems().add(0, itemToggleSidebar); // Lo ponemos el primero
 
         // --- 3. MENÚ HERRAMIENTAS ---
         Menu menuTools = new Menu(i18n.get("menu.tools"));
         MenuItem itemCompile = new MenuItem("Compilar (Pasmo)");
-        itemCompile.setAccelerator(new KeyCodeCombination(KeyCode.F7)); // Sugerencia: F7 para solo compilar
+        itemCompile.setAccelerator(new KeyCodeCombination(KeyCode.F7));
 
         itemCompile.setOnAction(e -> compileCode());
         menuTools.getItems().add(itemCompile);
 
         MenuItem itemRun = new MenuItem("Compilar y Ejecutar");
-        itemRun.setAccelerator(new KeyCodeCombination(KeyCode.F5)); // Atajo F5
+        itemRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
         itemRun.setOnAction(e -> runCode());
         menuTools.getItems().add(itemRun);
 
         // --- 4. MENÚ VENTANAS ---
         Menu menuWindows = new Menu("Ventanas");
 
-        // 4.1 Item existente: Pantalla Emulador
         MenuItem itemEmulator = new MenuItem("Pantalla Emulador");
         itemEmulator.setAccelerator(new KeyCodeCombination(KeyCode.F6));
         itemEmulator.setOnAction(e -> WindowManager.getInstance().showEmulator());
 
-        // 4.2 Nuevo Submenú: DEBUG
         Menu menuDebug = new Menu("Debug");
 
-        // Ventana Principal (Desensamblado y controles)
         MenuItem itemMainDebug = new MenuItem("Debugger Principal");
-        itemMainDebug.setAccelerator(new KeyCodeCombination(KeyCode.F5));
+        itemMainDebug.setAccelerator(new KeyCodeCombination(KeyCode.F5, KeyCombination.SHIFT_DOWN)); // Cambio F5 Shift para no chocar
         itemMainDebug.setOnAction(e -> DebugWindowManager.getInstance().showMainDebugger());
 
-        // Visor de Memoria
         MenuItem itemMemory = new MenuItem("Visor de Memoria");
         itemMemory.setOnAction(e -> DebugWindowManager.getInstance().showMemory());
 
-        // Registros CPU
         MenuItem itemRegisters = new MenuItem("Registros CPU");
         itemRegisters.setOnAction(e -> DebugWindowManager.getInstance().showRegisters());
 
-        // Pila (Stack)
         MenuItem itemStack = new MenuItem("Call Stack");
         itemStack.setOnAction(e -> DebugWindowManager.getInstance().showStack());
 
-        // Breakpoints
         MenuItem itemBreakpoints = new MenuItem("Breakpoints");
         itemBreakpoints.setOnAction(e -> DebugWindowManager.getInstance().showBreakpoints());
 
-        // Variables / Watchers
         MenuItem itemWatchers = new MenuItem("Watchers (Variables)");
         itemWatchers.setOnAction(e -> DebugWindowManager.getInstance().showWatchers());
 
-        // Añadir items al submenú Debug
         menuDebug.getItems().addAll(
                 itemMainDebug,
                 new SeparatorMenuItem(),
-                itemRegisters,
-                itemMemory,
-                itemStack,
-                itemBreakpoints,
-                itemWatchers
+                itemRegisters, itemMemory, itemStack, itemBreakpoints, itemWatchers
         );
 
-        // Añadir todo al menú Ventanas
         menuWindows.getItems().addAll(itemEmulator, new SeparatorMenuItem(), menuDebug);
 
         // --- 5. MENÚ CONFIGURACIÓN ---
         Menu menuSettings = new Menu(i18n.get("menu.settings"));
         MenuItem itemPreferences = new MenuItem(i18n.get("menu.settings.preferences"));
-        // Llamada estática directa, pasando la escena o el stage según pida tu método show
         itemPreferences.setOnAction(e -> SettingsDialog.show(primaryStage.getScene()));
 
         MenuItem itemTheme = new MenuItem("Cambiar Tema");
@@ -210,38 +431,37 @@ public class Main extends Application {
         MenuItem itemAbout = new MenuItem(i18n.get("menu.help.about"));
         menuHelp.getItems().add(itemAbout);
 
-        menuBar.getMenus().addAll(menuFile, menuEdit, menuTools, menuWindows, menuSettings, menuHelp);
+        menuBar.getMenus().addAll(menuFile, menuEdit, menuView, menuTools, menuWindows, menuSettings, menuHelp);
 
         return menuBar;
     }
 
     private void runCode() {
+        if (!fileManager.ensureSavedForCompilation()) {
+            return;
+        }
+
         String sourceCode = codeEditor.getText();
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             showAlert("Aviso", "No hay código para compilar.");
             return;
         }
 
-        // 1. Detectar archivo y Directorio de compilación
         File currentFile = fileManager.getCurrentFile();
         String fileName = "NONAME.asm";
         File buildDir;
 
         if (currentFile != null) {
             fileName = currentFile.getName();
-            // Creamos la carpeta 'build' JUNTO al archivo fuente
             buildDir = new File(currentFile.getParentFile(), "build");
         } else {
-            // Fallback: Si no está guardado, usar carpeta build en la raíz del proyecto
             buildDir = new File("build");
         }
 
-        // Crear directorio si no existe
         if (!buildDir.exists()) {
             buildDir.mkdirs();
         }
 
-        // 2. Calcular nombre TAP (MSDOS 8.3)
         String baseName = fileName.replaceFirst("[.][^.]+$", "");
         String tapName = baseName.toUpperCase().replace(" ", "").replace("_", "");
         if (tapName.length() > 8) tapName = tapName.substring(0, 8);
@@ -250,21 +470,16 @@ public class Main extends Application {
 
         System.out.println("🚀 Compilando " + fileName + " en " + buildDir.getAbsolutePath());
 
-        // Variables finales para el Thread
         final String finalSourceFileName = fileName;
         final String finalTapFileName = tapName;
         final File finalBuildDir = buildDir;
 
         new Thread(() -> {
             try {
-                // Guardar código fuente temporal en la carpeta de destino
                 File sourceFile = new File(finalBuildDir, finalSourceFileName);
                 java.nio.file.Files.writeString(sourceFile.toPath(), sourceCode);
 
-                // Instanciar compilador
                 com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler compiler = new com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler();
-
-                // Compilar en el directorio correcto
                 Process process = compiler.compile(sourceFile, finalBuildDir);
 
                 String output = new String(process.getInputStream().readAllBytes());
@@ -298,42 +513,32 @@ public class Main extends Application {
         }).start();
     }
 
-    // Helper para alertas rápidas (si no lo tienes ya)
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
     private void compileCode() {
+        if (!fileManager.ensureSavedForCompilation()) {
+            return;
+        }
+
         String sourceCode = codeEditor.getText();
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             showAlert("Aviso", "No hay código para compilar.");
             return;
         }
 
-        // 1. Detectar archivo y determinar carpeta 'build' relativa
-        java.io.File currentFile = fileManager.getCurrentFile();
-        java.io.File buildDir;
+        File currentFile = fileManager.getCurrentFile();
+        File buildDir;
         String fileName = "NONAME.asm";
 
         if (currentFile != null) {
             fileName = currentFile.getName();
-            // AQUÍ ESTÁ LA CLAVE: Carpeta build al lado del archivo .asm
-            buildDir = new java.io.File(currentFile.getParentFile(), "build");
+            buildDir = new File(currentFile.getParentFile(), "build");
         } else {
-            // Si el archivo no se ha guardado nunca, usamos la raíz del proyecto por defecto
-            buildDir = new java.io.File("build");
+            buildDir = new File("build");
         }
 
         if (!buildDir.exists()) {
             buildDir.mkdirs();
         }
 
-        // 2. Calcular nombre TAP (MSDOS 8.3)
-        // Quitamos extensión, pasamos a mayúsculas, quitamos espacios y cortamos a 8 chars
         String baseName = fileName.replaceFirst("[.][^.]+$", "");
         String tapName = baseName.toUpperCase().replace(" ", "").replace("_", "");
         if (tapName.length() > 8) tapName = tapName.substring(0, 8);
@@ -342,21 +547,16 @@ public class Main extends Application {
 
         System.out.println("🔨 Compilando " + fileName + " en " + buildDir.getAbsolutePath());
 
-        // Variables finales para el Thread
         final String finalSourceFileName = fileName;
         final String finalTapFileName = tapName;
-        final java.io.File finalBuildDir = buildDir;
+        final File finalBuildDir = buildDir;
 
         new Thread(() -> {
             try {
-                // Guardar una copia del código fuente en la carpeta build (opcional, pero útil)
-                java.io.File sourceFile = new java.io.File(finalBuildDir, finalSourceFileName);
+                File sourceFile = new File(finalBuildDir, finalSourceFileName);
                 java.nio.file.Files.writeString(sourceFile.toPath(), sourceCode);
 
-                // Instanciar compilador
                 com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler compiler = new com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler();
-
-                // Compilar
                 Process process = compiler.compile(sourceFile, finalBuildDir);
 
                 String output = new String(process.getInputStream().readAllBytes());
@@ -364,13 +564,10 @@ public class Main extends Application {
                 int exitCode = process.waitFor();
 
                 if (exitCode == 0) {
-                    java.io.File tapFile = new java.io.File(finalBuildDir, finalTapFileName);
-
+                    File tapFile = new File(finalBuildDir, finalTapFileName);
                     Platform.runLater(() -> {
                         if (tapFile.exists()) {
-                            // Mensaje de éxito en consola o barra de estado
                             System.out.println("✅ Generado correctamente: " + tapFile.getAbsolutePath());
-                            // Opcional: showAlert("Éxito", "Compilado en: " + tapFile.getName());
                         } else {
                             showAlert("Error Interno", "Pasmo terminó bien pero no aparece el archivo: " + finalTapFileName);
                         }
@@ -384,6 +581,14 @@ public class Main extends Application {
                 Platform.runLater(() -> showAlert("Error Crítico", e.getMessage()));
             }
         }).start();
+    }
+
+    private void showAlert(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 
     public static void main(String[] args) {

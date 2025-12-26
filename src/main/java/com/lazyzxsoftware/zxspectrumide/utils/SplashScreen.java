@@ -44,7 +44,7 @@ public class SplashScreen {
         subtitle.setStyle("-fx-text-fill: #B0BEC5;");
 
         // Versión
-        Label version = new Label("v0.0.4-alpha");
+        Label version = new Label("v0.0.8-alpha");
         version.setFont(Font.font("System", FontWeight.LIGHT, 12));
         version.setStyle("-fx-text-fill: #697098;");
 
