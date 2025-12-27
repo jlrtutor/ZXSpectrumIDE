@@ -34,10 +34,6 @@ public class AppConfig {
     private boolean pasmoDebug = false;
     private String buildPath = ""; // Ruta de salida personalizada
 
-    // --- Configuración de ZEsarUX / Emulador ---
-    private String emulatorPath = "";
-    private String emulatorMachine = "Spectrum 48k";
-
     // --- Proyecto e Historial ---
     private String lastProjectPath = "";
     private boolean openLastProjectOnStartup = true;
@@ -112,13 +108,6 @@ public class AppConfig {
 
     public String getBuildPath() { return buildPath; }
     public void setBuildPath(String buildPath) { this.buildPath = buildPath; }
-
-    // --- ZEsarUX ---
-    public String getEmulatorPath() { return emulatorPath; }
-    public void setEmulatorPath(String emulatorPath) { this.emulatorPath = emulatorPath; }
-
-    public String getEmulatorMachine() { return emulatorMachine; }
-    public void setEmulatorMachine(String emulatorMachine) { this.emulatorMachine = emulatorMachine; }
 
     // --- Proyecto ---
     public String getLastProjectPath() { return lastProjectPath; }

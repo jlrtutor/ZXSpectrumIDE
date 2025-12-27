@@ -338,3 +338,61 @@
     -fx-stroke: #80CBC4; /* Color de acento del tema (Cyan) */
     -fx-stroke-width: 2px; /* Más grueso */
 }
+
+/* --- Estilos para la Consola de Salida --- */
+.output-console {
+    -fx-background-color: #1e1e1e;
+}
+.output-console .content {
+    -fx-background-color: #1e1e1e;
+}
+
+/* Texto normal */
+.normal-text {
+    -fx-fill: #d4d4d4;
+    -fx-font-family: "Monospaced";
+}
+
+/* Error genérico (logError) -> ROJO PERO SIN MANITA */
+.error-text {
+    -fx-fill: #ff6b6b;
+    -fx-font-weight: bold;
+    -fx-font-family: "Monospaced";
+}
+
+/* Error de compilación (println detectado) -> ROJO, SUBRAYADO Y CLICABLE */
+.compilation-error {
+    -fx-fill: #ff6b6b;
+    -fx-font-weight: bold;
+    -fx-underline: true;
+    -fx-font-family: "Monospaced";
+}
+.compilation-error:hover {
+    -rtfx-background-fill: #3c1e1e; /* Fondo suave al pasar ratón */
+}
+
+/* ============================================
+   SIDEBAR HEADER (File Explorer)
+   ============================================ */
+.sidebar-header {
+    -fx-background-color: #1A1E2E; /* Coincide con tabs y paneles */
+    /* O si prefieres el gris original: -fx-background-color: #3c3f41; */
+    -fx-border-color: #1E2430;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* El texto ya es claro por defecto en el tema oscuro, pero aseguramos */
+.sidebar-header .label {
+    -fx-text-fill: #B0BEC5 !important;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+.sidebar-header .button {
+    -fx-text-fill: #B0BEC5 !important;
+    -fx-background-color: transparent;
+}
+.sidebar-header .button:hover {
+    -fx-background-color: #2C3E50;
+    -fx-text-fill: #FFFFFF !important;
+}

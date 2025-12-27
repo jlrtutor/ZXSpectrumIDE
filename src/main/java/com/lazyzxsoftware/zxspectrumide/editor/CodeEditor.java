@@ -11,6 +11,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
+import javafx.scene.Node;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 
 import java.io.File;
 import java.time.Duration;
@@ -189,6 +191,52 @@ public class CodeEditor extends BorderPane {
     public void selectAll() {
         CodeArea area = getActiveCodeArea();
         if (area != null) area.selectAll();
+    }
+
+    /**
+     * Mueve el cursor a la línea especificada en la pestaña ACTIVA.
+     */
+    public void goToLine(int lineNumber) {
+        // 1. Obtener la pestaña seleccionada actualmente
+        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
+        if (currentTab == null) return;
+
+        // 2. Extraer el CodeArea de dentro de la pestaña
+        // (Recordemos que el CodeArea suele estar dentro de un VirtualizedScrollPane)
+        Node content = currentTab.getContent();
+        CodeArea activeCodeArea = null;
+
+        if (content instanceof VirtualizedScrollPane) {
+            // El caso normal: sacamos el contenido del scroll pane
+            var scrollPane = (VirtualizedScrollPane<?>) content;
+            if (scrollPane.getContent() instanceof CodeArea) {
+                activeCodeArea = (CodeArea) scrollPane.getContent();
+            }
+        } else if (content instanceof CodeArea) {
+            // Caso raro: si estuviera el editor directo sin scroll
+            activeCodeArea = (CodeArea) content;
+        }
+
+        // Si no encontramos un editor válido, salimos
+        if (activeCodeArea == null) return;
+
+        // 3. Lógica de navegación sobre el editor activo
+        int index = lineNumber - 1; // RichTextFX usa base-0
+
+        if (index < 0) index = 0;
+
+        // Evitar ir más allá del final
+        int totalLines = activeCodeArea.getParagraphs().size();
+        if (index >= totalLines) index = totalLines - 1;
+
+        try {
+            activeCodeArea.moveTo(index, 0);       // Mover cursor
+            activeCodeArea.requestFollowCaret();   // Scroll hasta el cursor
+            activeCodeArea.requestFocus();         // Dar foco
+            activeCodeArea.selectLine();           // Resaltar línea
+        } catch (Exception e) {
+            System.err.println("Error navegando a línea: " + lineNumber);
+        }
     }
 
     /**

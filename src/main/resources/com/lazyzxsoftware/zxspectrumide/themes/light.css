@@ -338,3 +338,76 @@
     -fx-stroke: #4A90E2; /* Color de acento del tema (Azul) */
     -fx-stroke-width: 2px; /* Más grueso */
 }
+
+/* --- Estilos para la Consola de Salida --- */
+.output-console {
+    -fx-background-color: #ffffff;
+}
+/* Fondo del contenido de texto */
+.output-console .content {
+    -fx-background-color: #ffffff;
+}
+
+/* Texto normal */
+.normal-text {
+    -fx-fill: #333333;
+    -fx-font-family: "Monospaced";
+}
+
+/* Error genérico (logError) -> ROJO PERO SIN MANITA */
+.error-text {
+    -fx-fill: #d32f2f;
+    -fx-font-weight: bold;
+    -fx-font-family: "Monospaced";
+}
+
+/* Error de compilación (println detectado) -> ROJO, SUBRAYADO Y CLICABLE */
+.compilation-error {
+    -fx-fill: #d32f2f;
+    -fx-font-weight: bold;
+    -fx-underline: true;
+    -fx-font-family: "Monospaced";
+}
+.compilation-error:hover {
+    -rtfx-background-fill: #ffebee; /* Fondo suave al pasar ratón */
+}
+
+/* LA CLAVE: Errores de compilación clicables */
+.compilation-error {
+    -fx-fill: #d32f2f;           /* Rojo */
+    -fx-font-weight: bold;
+    -fx-underline: true;         /* Subrayado para parecer link */
+    -fx-font-family: "Monospaced";
+    -fx-font-size: 12px;
+}
+/* Efecto hover opcional para el fondo del error */
+.compilation-error:hover {
+    -rtfx-background-fill: #ffebee;
+}
+
+/* ============================================
+   SIDEBAR HEADER (File Explorer)
+   ============================================ */
+.sidebar-header {
+    -fx-background-color: #e0e0e0; /* Gris claro */
+    -fx-border-color: #b0b0b0;
+    -fx-border-width: 0 0 1 0; /* Línea separadora abajo */
+}
+
+/* Ajuste para que el texto "PROYECTO" se vea bien en claro */
+.sidebar-header .label {
+    -fx-text-fill: #333333 !important; /* Texto oscuro forzado */
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+/* Ajuste para el botón de colapsar "<<" */
+.sidebar-header .button {
+    -fx-text-fill: #555555 !important;
+    -fx-background-color: transparent;
+}
+.sidebar-header .button:hover {
+    -fx-background-color: #d0d0d0; /* Efecto hover sutil */
+    -fx-text-fill: #000000 !important;
+}
+

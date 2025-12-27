@@ -3,7 +3,6 @@ package com.lazyzxsoftware.zxspectrumide.ui;
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
 import com.lazyzxsoftware.zxspectrumide.settings.SettingsPanel;
 import com.lazyzxsoftware.zxspectrumide.settings.panels.PasmoSettingsPanel;
-import com.lazyzxsoftware.zxspectrumide.settings.panels.ZesaruxSettingsPanel;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -14,7 +13,6 @@ import javafx.stage.Stage;
 
 public class SettingsDialog {
 
-    // Método estático como espera tu Main.java
     public static void show(Scene ownerScene) {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
@@ -43,20 +41,10 @@ public class SettingsDialog {
         compilerContainer.getChildren().addAll(selectCompLabel, compilerSelector, new Separator(), compilerDynamicArea);
         compilerTab.setContent(compilerContainer);
 
-        // --- Pestaña 2: Emulador ---
-        Tab emulatorTab = new Tab("Emulador");
-        VBox emulatorContainer = new VBox(10);
-        emulatorContainer.setPadding(new Insets(15));
+        // --- (La Pestaña Emulador se ha eliminado por limpieza) ---
+        // En el futuro aquí pondremos la config del emulador interno (Modelo, velocidad, etc)
 
-        BorderPane emulatorDynamicArea = new BorderPane();
-        SettingsPanel zesaruxPanel = new ZesaruxSettingsPanel();
-        zesaruxPanel.loadSettings(); // Cargar datos actuales
-        emulatorDynamicArea.setCenter(zesaruxPanel);
-
-        emulatorContainer.getChildren().addAll(new Label("Configuración ZEsarUX:"), new Separator(), emulatorDynamicArea);
-        emulatorTab.setContent(emulatorContainer);
-
-        tabPane.getTabs().addAll(compilerTab, emulatorTab);
+        tabPane.getTabs().add(compilerTab);
 
         // --- Botón Guardar ---
         Button btnSave = new Button("Guardar y Cerrar");
@@ -64,7 +52,6 @@ public class SettingsDialog {
         btnSave.setOnAction(e -> {
             // 1. Guardar cambios de UI a Memoria
             pasmoPanel.saveSettings();
-            zesaruxPanel.saveSettings();
 
             // 2. Guardar Memoria a Disco (CRÍTICO)
             ConfigManager.getInstance().saveConfig();
@@ -75,8 +62,7 @@ public class SettingsDialog {
         VBox root = new VBox(10, tabPane, new Separator(), btnSave);
         root.setPadding(new Insets(10));
 
-        Scene scene = new Scene(root, 600, 500);
-        // Intentar cargar estilos
+        Scene scene = new Scene(root, 600, 400); // Reduje un poco la altura
         if (ownerScene != null && !ownerScene.getStylesheets().isEmpty()) {
             scene.getStylesheets().add(ownerScene.getStylesheets().get(0));
         }

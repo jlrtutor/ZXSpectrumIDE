@@ -72,15 +72,26 @@ public class PasmoCompiler implements Compiler {
 
         if (config.isPasmoDebug()) {
             command.add("-d");
-            command.add("--public");
-            command.add(new File(outputDir, baseName + ".symbols").getAbsolutePath());
         }
 
         command.add("-I");
         command.add(sourceFile.getParent());
 
+        // INPUT (Posición 1)
         command.add(sourceFile.getAbsolutePath());
+
+        // OUTPUT (Posición 2)
         command.add(outputFile.getAbsolutePath());
+
+        // 3. SYMBOL FILE (.symbols)
+        // Aquí Pasmo escribirá la tabla completa de símbolos
+        File symbolFile = new File(outputDir, baseName + ".symbols");
+        command.add(symbolFile.getAbsolutePath());
+
+        // 4. PUBLIC FILE (.publics) - ¡NUEVO!
+        // Aquí Pasmo escribirá solo los símbolos públicos (si los hay)
+        File publicFile = new File(outputDir, baseName + ".publics");
+        command.add(publicFile.getAbsolutePath());
 
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(outputDir);

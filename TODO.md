@@ -1,6 +1,6 @@
 # ZXSpectrumIDE - Roadmap & TODO
 
-### Versión Actual: 0.0.8
+### Versión Actual: 0.0.9
 
 ## Proyecto: IDE Completo para Desarrollo de Videojuegos en ZX Spectrum
 
@@ -31,6 +31,10 @@
 - [x] Parsear errores de PASMO (Salida básica)
 - [x] Generación de archivo `.tap` con cargador BASIC (`--tapbas`)
 - [x] Gestión de nombres de archivo formato 8.3 (MSDOS)
+- [x] Parsear errores de Pasmo y navegar a la línea (Click-to-Jump)
+- [ ] **Visualización de Símbolos (.symbols)**
+    - [ ] Split View en consola (Log a la izquierda, Símbolos a la derecha)
+    - [ ] Carga automática tras compilación exitosa
 
 ### 1.4 Depurador y Emulación (Nueva Arquitectura WebView)
 - [x] **Integración JSSpeccy**
@@ -52,6 +56,12 @@
 - [x] **Visor de Memoria**
     - [x] Volcado Hexadecimal
     - [x] Edición de memoria (Lectura implementada, escritura pendiente)
+- [ ] **Refactorizar Ejecución**
+  - [ ] Eliminar "Run 8000" hardcoded.
+  - [ ] Detectar dirección de inicio automáticamente (usando .symbols).
+  - [ ] Unificar botones de "Run" y "Go to Start".
+  - [x] Eliminar código legacy de ZEsarUX externo (Bridge, Launcher, Settings).
+  - [x] Limpiar configuración obsoleta.
 
 ### 1.5 Gestión de Proyectos
 - [x] Estructura de compilación relativa (`/build` junto al archivo fuente)

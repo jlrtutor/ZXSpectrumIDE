@@ -1,5 +1,7 @@
 package com.lazyzxsoftware.zxspectrumide;
 
+import javafx.scene.layout.StackPane;
+import java.nio.file.Files;
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
 import com.lazyzxsoftware.zxspectrumide.editor.CodeEditor;
 import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
@@ -7,6 +9,7 @@ import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
 import com.lazyzxsoftware.zxspectrumide.managers.WindowManager;
 import com.lazyzxsoftware.zxspectrumide.theme.ThemeManager;
 import com.lazyzxsoftware.zxspectrumide.ui.FileExplorer;
+import com.lazyzxsoftware.zxspectrumide.ui.OutputConsole;
 import com.lazyzxsoftware.zxspectrumide.ui.SettingsDialog;
 import com.lazyzxsoftware.zxspectrumide.utils.SplashScreen;
 import com.lazyzxsoftware.zxspectrumide.utils.PlatformUtils;
@@ -39,6 +42,10 @@ import java.util.ResourceBundle;
 
 public class Main extends Application {
 
+    private SplitPane splitPaneHorizontal;
+    private SplitPane splitPaneVertical;
+    private OutputConsole outputConsole;
+
     private Label lblProject;
     private Button btnCollapse;
     private Stage primaryStage;
@@ -56,28 +63,84 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        initMainStage(primaryStage);
+        // 1. Inicializar componentes lógicos y UI base
+        initMainStageComponents(primaryStage);
+
+        // 2. Crear el Splash (Panel superpuesto)
+        SplashScreen splash = new SplashScreen();
+
+        // 3. Crear el contenedor de capas (IDE al fondo, Splash al frente)
+        StackPane rootStack = new StackPane(rootLayout, splash);
+
+        // 4. Crear la Escena con tamaño inicial (sin maximizar para evitar golpes visuales)
+        Scene scene = new Scene(rootStack, 1100, 800);
+
+        // Registrar tema inmediatamente
+        ThemeManager.getInstance().registerScene(scene);
+
+        primaryStage.setScene(scene);
+        primaryStage.setTitle(i18n.get("app.title") + " (Develop)");
+        PlatformUtils.setAppIcon(primaryStage, "/com/lazyzxsoftware/zxspectrumide/icons/app_icon.png");
+
+        // 5. Mostrar ventana
+        primaryStage.show();
+        primaryStage.toFront();
+        primaryStage.requestFocus();
+
+        // 6. Hilo de carga en segundo plano
+        new Thread(() -> {
+            try {
+                splash.updateStatus("Inicializando núcleo...");
+                Thread.sleep(300);
+
+                splash.updateProgress(0.4);
+                splash.updateStatus("Cargando configuración...");
+                Thread.sleep(300);
+
+                splash.updateProgress(0.8);
+                splash.updateStatus("Preparando interfaz...");
+
+                // Forzamos un layout pass para que el IDE se dibuje detrás del splash
+                Platform.runLater(() -> rootLayout.requestLayout());
+                Thread.sleep(400);
+
+                splash.updateProgress(1.0);
+
+                // 7. Retirar Splash y Maximizar
+                Platform.runLater(() -> {
+                    splash.dismiss(() -> {
+                        rootStack.getChildren().remove(splash);
+
+                        // Maximizamos ahora que la transición ha terminado
+                        primaryStage.setMaximized(true);
+
+                        // Importante: Enfocar el editor para que el teclado responda
+                        if (codeEditor != null) {
+                            codeEditor.requestFocus();
+                        }
+                    });
+                });
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
-    private void initMainStage(Stage primaryStage) {
+    // Renombrado y ajustado
+    private void initMainStageComponents(Stage primaryStage) {
         this.primaryStage = primaryStage;
         this.i18n = I18nManager.getInstance();
 
-        // Configuración básica de la ventana
-        primaryStage.setTitle(i18n.get("app.title") + " (Develop)");
-
-        PlatformUtils.setAppIcon(primaryStage, "/com/lazyzxsoftware/zxspectrumide/icons/app_icon.png");
-
-        // Inicializar componentes principales
         codeEditor = new CodeEditor();
         fileManager = new FileManager(primaryStage, codeEditor);
 
         initRootLayout();
 
-        // Aplicar tema guardado
-        ThemeManager.getInstance().registerScene(primaryStage.getScene());
+        // --- CORRECCIÓN: ELIMINAR ESTA LÍNEA QUE DABA ERROR ---
+        // ThemeManager.getInstance().registerScene(null);  <-- BORRAR ESTO
+        // -----------------------------------------------------
 
-        // Manejo de cierre de la aplicación
         primaryStage.setOnCloseRequest(event -> {
             if (fileManager.checkUnsavedChanges()) {
                 WindowManager.getInstance().closeEmulator();
@@ -87,53 +150,66 @@ public class Main extends Application {
                 event.consume();
             }
         });
-
-        primaryStage.setMaximized(true);
-        primaryStage.show();
     }
 
     private void initRootLayout() {
         rootLayout = new BorderPane();
-        rootLayout.setTop(createMenuBar());
+        MenuBar menuBar = createMenuBar();
+        rootLayout.setTop(menuBar);
 
-        // --- Inicialización de componentes (igual que antes) ---
+        // --- 1. PREPARAR SIDEBAR (Igual que antes) ---
         fileExplorer = new FileExplorer(fileManager);
-
         sidebarHeader = new javafx.scene.layout.HBox();
-        sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
-
+        sidebarHeader.getStyleClass().add("sidebar-header");
+        sidebarHeader.setStyle("-fx-padding: 5; -fx-alignment: center-left;"); // Solo estructura
         lblProject = new Label("PROYECTO");
         lblProject.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px;");
-
         btnCollapse = new Button("<<");
         btnCollapse.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 10px; -fx-cursor: hand; -fx-font-weight: bold; -fx-padding: 2; -fx-min-width: 25;");
         btnCollapse.setOnAction(e -> toggleSidebar());
-
         spacer = new javafx.scene.layout.Region();
         javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-
         sidebarHeader.getChildren().addAll(lblProject, spacer, btnCollapse);
 
         sidebarContainer = new javafx.scene.layout.VBox(sidebarHeader, fileExplorer);
         javafx.scene.layout.VBox.setVgrow(fileExplorer, javafx.scene.layout.Priority.ALWAYS);
         sidebarContainer.setMinWidth(0);
 
-        // --- SPLITPANE ---
-        splitPane = new SplitPane();
+        // --- 2. SPLIT PANE HORIZONTAL (Arriba: Sidebar | Editor) ---
+        // Renombramos 'splitPane' a 'splitPaneHorizontal' para evitar confusiones
+        splitPaneHorizontal = new SplitPane();
+        splitPaneHorizontal.getItems().add(codeEditor); // Empezamos solo con el editor (Sidebar oculto)
 
-        // CORRECCIÓN: Al inicio SOLO añadimos el editor. El sidebar NO EXISTE visualmente.
-        splitPane.getItems().add(codeEditor);
+        // --- 3. CONSOLA DE SALIDA ---
+        outputConsole = OutputConsole.getInstance();
+        // Le decimos a la consola qué hacer cuando detecta una línea
+        outputConsole.setOnLineRequest(lineNumber -> {
+            // Volvemos a poner el foco en el editor
+            codeEditor.requestFocus();
+            // Vamos a la línea
+            codeEditor.goToLine(lineNumber);
+        });
 
-        rootLayout.setCenter(splitPane);
+        // --- 4. SPLIT PANE VERTICAL (Arriba: HorizontalPane | Abajo: Consola) ---
+        splitPaneVertical = new SplitPane();
+        splitPaneVertical.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        splitPaneVertical.getItems().addAll(splitPaneHorizontal, outputConsole);
+        splitPaneVertical.setDividerPositions(0.8); // 80% Editor, 20% Consola
 
-        Scene scene = new Scene(rootLayout, 1024, 768);
-        primaryStage.setScene(scene);
+        rootLayout.setCenter(splitPaneVertical);
+
+        // Iniciamos el sidebar colapsado (lógica visual)
+        // NOTA: toggleSidebar ahora usa 'splitPaneHorizontal', hay que actualizar ese método
+        toggleSidebar();
     }
 
     private void toggleSidebar() {
         if (sidebarVisible) {
             // --- COLAPSAR ---
-            lastDividerPosition = splitPane.getDividerPositions()[0];
+            double[] dividers = splitPaneHorizontal.getDividerPositions();
+            if (dividers.length > 0) {
+                lastDividerPosition = dividers[0];
+            }
 
             // 1. Ocultar elementos innecesarios
             fileExplorer.setVisible(false);
@@ -148,7 +224,7 @@ public class Main extends Application {
             // 2. Configurar cabecera para modo "barra vertical"
             btnCollapse.setText(">>");
             // TRUCO: Quitamos el padding lateral del HBox para ganar espacio
-            sidebarHeader.setStyle("-fx-padding: 5 0 5 0; -fx-background-color: #3c3f41; -fx-alignment: center;");
+            sidebarHeader.setStyle("-fx-padding: 5 0 5 0; -fx-alignment: center;");
             sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER);
 
             // 3. Ajustar ancho (Damos 50px para ir sobrados y que se vea bien)
@@ -175,11 +251,13 @@ public class Main extends Application {
             // 3. Restaurar cabecera y estilos originales
             btnCollapse.setText("<<");
             // Restauramos el padding original (5px en todos lados) y la alineación
-            sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
+            sidebarHeader.setStyle("-fx-padding: 5; -fx-alignment: center-left;");
             sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
-            // 4. Restaurar posición divisor
-            splitPane.setDividerPositions(lastDividerPosition);
+            // Restaurar posición solo si estamos recuperando el estado
+            if (splitPaneHorizontal.getItems().contains(sidebarContainer)) {
+                splitPaneHorizontal.setDividerPositions(lastDividerPosition);
+            }
 
             sidebarVisible = true;
         }
@@ -201,9 +279,9 @@ public class Main extends Application {
 
             ensureSidebarExpanded();
 
-            if (!splitPane.getItems().contains(sidebarContainer)) {
-                splitPane.getItems().add(0, sidebarContainer);
-                splitPane.setDividerPositions(0.2);
+            if (!splitPaneHorizontal.getItems().contains(sidebarContainer)) {
+                splitPaneHorizontal.getItems().add(0, sidebarContainer);
+                splitPaneHorizontal.setDividerPositions(0.2);
             }
 
             fileManager.detectAndOpenMainFile(selectedDirectory);
@@ -228,7 +306,7 @@ public class Main extends Application {
         spacer.setManaged(true);
 
         btnCollapse.setText("<<");
-        sidebarHeader.setStyle("-fx-padding: 5; -fx-background-color: #3c3f41; -fx-alignment: center-left;");
+        sidebarHeader.setStyle("-fx-padding: 5; -fx-alignment: center-left;");
         sidebarHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         sidebarVisible = true; // Actualizar flag interno
@@ -247,8 +325,8 @@ public class Main extends Application {
 
         // 4. ELIMINAR EL PANEL LATERAL DE LA VISTA
         // Si el sidebar está en el splitpane, lo quitamos
-        if (splitPane.getItems().contains(sidebarContainer)) {
-            splitPane.getItems().remove(sidebarContainer);
+        if (splitPaneHorizontal.getItems().contains(sidebarContainer)) {
+            splitPaneHorizontal.getItems().remove(sidebarContainer);
         }
 
         System.out.println("Proyecto cerrado.");
@@ -437,16 +515,22 @@ public class Main extends Application {
     }
 
     private void runCode() {
+        // 1. Guardado de seguridad
         if (!fileManager.ensureSavedForCompilation()) {
             return;
         }
 
+        // 2. Limpieza de consola e inicio
+        outputConsole.clear(); // <--- ESTA ES LA CLAVE
+        outputConsole.logSuccess("🚀 Iniciando Compilación y Ejecución...");
+
         String sourceCode = codeEditor.getText();
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
-            showAlert("Aviso", "No hay código para compilar.");
+            outputConsole.logError("No hay código para compilar.");
             return;
         }
 
+        // --- Preparación de rutas (Igual que antes) ---
         File currentFile = fileManager.getCurrentFile();
         String fileName = "NONAME.asm";
         File buildDir;
@@ -468,12 +552,11 @@ public class Main extends Application {
         if (tapName.isEmpty()) tapName = "NONAME";
         tapName += ".tap";
 
-        System.out.println("🚀 Compilando " + fileName + " en " + buildDir.getAbsolutePath());
-
         final String finalSourceFileName = fileName;
         final String finalTapFileName = tapName;
         final File finalBuildDir = buildDir;
 
+        // --- Proceso en segundo plano ---
         new Thread(() -> {
             try {
                 File sourceFile = new File(finalBuildDir, finalSourceFileName);
@@ -483,15 +566,34 @@ public class Main extends Application {
                 Process process = compiler.compile(sourceFile, finalBuildDir);
 
                 String output = new String(process.getInputStream().readAllBytes());
+                String error = new String(process.getErrorStream().readAllBytes()); // Capturamos errores también
                 int exitCode = process.waitFor();
 
                 if (exitCode == 0) {
+                    // --- ÉXITO ---
                     File tapFile = new File(finalBuildDir, finalTapFileName);
 
-                    if (tapFile.exists()) {
-                        byte[] binaryData = java.nio.file.Files.readAllBytes(tapFile.toPath());
-                        System.out.println("✅ Compilado OK: " + tapFile.getAbsolutePath());
+                    // --- BLOQUE NUEVO PARA SÍMBOLOS ---
+                    String symbolsName = finalSourceFileName.replaceFirst("[.][^.]+$", "") + ".symbols";
+                    File symbolsFile = new File(finalBuildDir, symbolsName);
+                    if (symbolsFile.exists()) {
+                        try {
+                            String symContent = java.nio.file.Files.readString(symbolsFile.toPath());
+                            outputConsole.showSymbols(symContent);
+                        } catch (Exception e) {
+                            outputConsole.logError("No se pudo leer .symbols");
+                        }
+                    }
+                    // ----------------------------------
 
+                    if (tapFile.exists()) {
+                        outputConsole.logSuccess("✅ Compilación OK.");
+                        // Solo mostramos output si Pasmo dijo algo (warnings, etc)
+                        if (!output.trim().isEmpty()) outputConsole.println(output);
+
+                        outputConsole.logSuccess("Lanzando emulador con: " + finalTapFileName);
+
+                        byte[] binaryData = java.nio.file.Files.readAllBytes(tapFile.toPath());
                         Platform.runLater(() -> {
                             WindowManager.getInstance().showEmulator();
                             var webView = WindowManager.getInstance().getEmulatorWebView();
@@ -500,15 +602,19 @@ public class Main extends Application {
                             }
                         });
                     } else {
-                        Platform.runLater(() -> showAlert("Error Interno", "No se generó el archivo: " + finalTapFileName));
+                        outputConsole.logError("Pasmo terminó bien, pero no se generó el archivo .tap");
                     }
                 } else {
-                    Platform.runLater(() -> showAlert("Error de Compilación", output));
+                    // --- ERROR ---
+                    outputConsole.logError("❌ Fallo de compilación:");
+                    // Mostramos tanto stdout como stderr porque Pasmo a veces usa ambos para info
+                    outputConsole.println(error);
+                    outputConsole.println(output);
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
-                Platform.runLater(() -> showAlert("Error Crítico", e.getMessage()));
+                outputConsole.logError("Error Crítico del IDE: " + e.getMessage());
             }
         }).start();
     }
@@ -517,6 +623,10 @@ public class Main extends Application {
         if (!fileManager.ensureSavedForCompilation()) {
             return;
         }
+
+        // Limpiamos la consola al empezar
+        outputConsole.clear();
+        outputConsole.logSuccess("Iniciando compilación...");
 
         String sourceCode = codeEditor.getText();
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
@@ -564,21 +674,41 @@ public class Main extends Application {
                 int exitCode = process.waitFor();
 
                 if (exitCode == 0) {
-                    File tapFile = new File(finalBuildDir, finalTapFileName);
-                    Platform.runLater(() -> {
-                        if (tapFile.exists()) {
-                            System.out.println("✅ Generado correctamente: " + tapFile.getAbsolutePath());
-                        } else {
-                            showAlert("Error Interno", "Pasmo terminó bien pero no aparece el archivo: " + finalTapFileName);
+                    // TODO OK!
+                    // --- ÉXITO ---
+                    outputConsole.logSuccess("✅ Compilación OK.");
+
+                    // Si Pasmo soltó algún warning por consola, lo mostramos
+                    if (!output.trim().isEmpty()) {
+                        outputConsole.println(output);
+                    }
+
+                    // --- CARGAR SÍMBOLOS (Desde el archivo generado en pos. 3) ---
+                    String symbolsName = baseName + ".symbols";
+                    File symbolsFile = new File(finalBuildDir, symbolsName);
+
+                    if (symbolsFile.exists()) {
+                        try {
+                            String symContent = java.nio.file.Files.readString(symbolsFile.toPath());
+                            // Mostramos la tabla completa en el panel derecho
+                            outputConsole.showSymbols(symContent);
+                        } catch (Exception e) {
+                            outputConsole.logError("No se pudo leer .symbols: " + e.getMessage());
                         }
-                    });
+                    } else {
+                        outputConsole.logError("Advertencia: No se generó archivo de símbolos.");
+                    }
+                    // ----------------------------------
                 } else {
-                    Platform.runLater(() -> showAlert("Error de Compilación", error + "\n" + output));
+                    // ERROR
+                    outputConsole.logError("Error de compilación:");
+                    outputConsole.println(error);
+                    outputConsole.println(output);
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
-                Platform.runLater(() -> showAlert("Error Crítico", e.getMessage()));
+                outputConsole.logError("Error crítico del sistema: " + e.getMessage());
             }
         }).start();
     }
