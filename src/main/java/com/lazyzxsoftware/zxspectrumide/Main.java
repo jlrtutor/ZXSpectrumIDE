@@ -455,7 +455,7 @@ public class Main extends Application {
 
         MenuItem itemRun = new MenuItem("Compilar y Ejecutar");
         itemRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
-        itemRun.setOnAction(e -> runCode());
+        itemRun.setOnAction(e -> compileAndRunCode());
         menuTools.getItems().add(itemRun);
 
         // --- 4. MENÚ VENTANAS ---
@@ -494,6 +494,11 @@ public class Main extends Application {
 
         menuWindows.getItems().addAll(itemEmulator, new SeparatorMenuItem(), menuDebug);
 
+        Menu debugMenu = new Menu("Depurador");
+        MenuItem itemLog = new MenuItem("Ver Historial de Ejecución (Trace Log)");
+        itemLog.setOnAction(e -> DebugWindowManager.getInstance().showTraceLog());
+        debugMenu.getItems().add(itemLog);
+
         // --- 5. MENÚ CONFIGURACIÓN ---
         Menu menuSettings = new Menu(i18n.get("menu.settings"));
         MenuItem itemPreferences = new MenuItem(i18n.get("menu.settings.preferences"));
@@ -509,19 +514,20 @@ public class Main extends Application {
         MenuItem itemAbout = new MenuItem(i18n.get("menu.help.about"));
         menuHelp.getItems().add(itemAbout);
 
-        menuBar.getMenus().addAll(menuFile, menuEdit, menuView, menuTools, menuWindows, menuSettings, menuHelp);
+        menuBar.getMenus().addAll(menuFile, menuEdit, menuView, debugMenu, menuTools, menuWindows, menuSettings, menuHelp);
 
         return menuBar;
     }
 
-    private void runCode() {
+    private void compileAndRunCode() {
         // 1. Guardado de seguridad
         if (!fileManager.ensureSavedForCompilation()) {
             return;
         }
 
         // 2. Limpieza de consola e inicio
-        outputConsole.clear(); // <--- ESTA ES LA CLAVE
+        outputConsole.clear();
+        outputConsole.clear();
         outputConsole.logSuccess("🚀 Iniciando Compilación y Ejecución...");
 
         String sourceCode = codeEditor.getText();
@@ -556,67 +562,63 @@ public class Main extends Application {
         final String finalTapFileName = tapName;
         final File finalBuildDir = buildDir;
 
-        // --- Proceso en segundo plano ---
-        new Thread(() -> {
-            try {
-                File sourceFile = new File(finalBuildDir, finalSourceFileName);
-                java.nio.file.Files.writeString(sourceFile.toPath(), sourceCode);
+        try {
+            File sourceFile = new File(finalBuildDir, finalSourceFileName);
+            java.nio.file.Files.writeString(sourceFile.toPath(), sourceCode);
 
-                com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler compiler = new com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler();
-                Process process = compiler.compile(sourceFile, finalBuildDir);
+            com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler compiler = new com.lazyzxsoftware.zxspectrumide.compiler.PasmoCompiler();
+            Process process = compiler.compile(sourceFile, finalBuildDir);
 
-                String output = new String(process.getInputStream().readAllBytes());
-                String error = new String(process.getErrorStream().readAllBytes()); // Capturamos errores también
-                int exitCode = process.waitFor();
+            String output = new String(process.getInputStream().readAllBytes());
+            String error = new String(process.getErrorStream().readAllBytes()); // Capturamos errores también
+            int exitCode = process.waitFor();
 
-                if (exitCode == 0) {
-                    // --- ÉXITO ---
-                    File tapFile = new File(finalBuildDir, finalTapFileName);
+            if (exitCode == 0) {
+                // --- ÉXITO ---
+                File tapFile = new File(finalBuildDir, finalTapFileName);
 
-                    // --- BLOQUE NUEVO PARA SÍMBOLOS ---
-                    String symbolsName = finalSourceFileName.replaceFirst("[.][^.]+$", "") + ".symbols";
-                    File symbolsFile = new File(finalBuildDir, symbolsName);
-                    if (symbolsFile.exists()) {
-                        try {
-                            String symContent = java.nio.file.Files.readString(symbolsFile.toPath());
-                            outputConsole.showSymbols(symContent);
-                        } catch (Exception e) {
-                            outputConsole.logError("No se pudo leer .symbols");
-                        }
+                // --- BLOQUE NUEVO PARA SÍMBOLOS ---
+                String symbolsName = finalSourceFileName.replaceFirst("[.][^.]+$", "") + ".symbols";
+                File symbolsFile = new File(finalBuildDir, symbolsName);
+                if (symbolsFile.exists()) {
+                    try {
+                        String symContent = java.nio.file.Files.readString(symbolsFile.toPath());
+                        outputConsole.showSymbols(symContent);
+                    } catch (Exception e) {
+                        outputConsole.logError("No se pudo leer .symbols");
                     }
-                    // ----------------------------------
-
-                    if (tapFile.exists()) {
-                        outputConsole.logSuccess("✅ Compilación OK.");
-                        // Solo mostramos output si Pasmo dijo algo (warnings, etc)
-                        if (!output.trim().isEmpty()) outputConsole.println(output);
-
-                        outputConsole.logSuccess("Lanzando emulador con: " + finalTapFileName);
-
-                        byte[] binaryData = java.nio.file.Files.readAllBytes(tapFile.toPath());
-                        Platform.runLater(() -> {
-                            WindowManager.getInstance().showEmulator();
-                            var webView = WindowManager.getInstance().getEmulatorWebView();
-                            if (webView != null) {
-                                webView.loadProgram(binaryData, finalTapFileName);
-                            }
-                        });
-                    } else {
-                        outputConsole.logError("Pasmo terminó bien, pero no se generó el archivo .tap");
-                    }
-                } else {
-                    // --- ERROR ---
-                    outputConsole.logError("❌ Fallo de compilación:");
-                    // Mostramos tanto stdout como stderr porque Pasmo a veces usa ambos para info
-                    outputConsole.println(error);
-                    outputConsole.println(output);
                 }
+                // ----------------------------------
+                if (tapFile.exists()) {
+                    outputConsole.logSuccess("✅ Compilación OK.");
+                    // Solo mostramos output si Pasmo dijo algo (warnings, etc)
+                    if (!output.trim().isEmpty()) outputConsole.println(output);
 
-            } catch (Exception e) {
-                e.printStackTrace();
-                outputConsole.logError("Error Crítico del IDE: " + e.getMessage());
+                    outputConsole.logSuccess("Lanzando emulador con: " + finalTapFileName);
+
+                    byte[] binaryData = java.nio.file.Files.readAllBytes(tapFile.toPath());
+                    Platform.runLater(() -> {
+                        WindowManager.getInstance().showEmulator();
+                        var webView = WindowManager.getInstance().getEmulatorWebView();
+                        if (webView != null) {
+                            webView.loadProgram(binaryData, finalTapFileName);
+                        }
+                    });
+                } else {
+                    outputConsole.logError("Pasmo terminó bien, pero no se generó el archivo .tap");
+                }
+            } else {
+                // --- ERROR ---
+                outputConsole.logError("❌ Fallo de compilación:");
+                // Mostramos tanto stdout como stderr porque Pasmo a veces usa ambos para info
+                outputConsole.println(error);
+                outputConsole.println(output);
             }
-        }).start();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            outputConsole.logError("Error Crítico del IDE: " + e.getMessage());
+        }
     }
 
     private void compileCode() {

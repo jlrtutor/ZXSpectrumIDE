@@ -89,23 +89,43 @@ public class DebugWindowManager {
         }
     }
 
+    public void showTraceLog() {
+        showWindow("Trace Log", new TraceLogWindow(), 500, 400);
+    }
+
+    // Método actualizado para recibir también el Trace Log
     public void updateDebugInfo(int af, int bc, int de, int hl,
                                 int af_, int bc_, int de_, int hl_,
                                 int ix, int iy, int sp, int pc,
-                                byte[] memoryWindow) {
+                                int memStart,
+                                byte[] memoryWindow,
+                                byte[] traceData) { // <--- Nuevo parámetro
 
         // 1. Actualizar registros (Si la ventana está abierta)
         updateRegisterInfo(af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc);
 
-        // 2. Actualizar Desensamblador (CORREGIDO)
+        // 2. Actualizar Desensamblador
         if (openWindows.containsKey("Debugger Principal")) {
             Stage stage = openWindows.get("Debugger Principal");
             if (stage.getScene() != null && stage.getScene().getRoot() instanceof MainDebuggerWindow) {
                 MainDebuggerWindow win = (MainDebuggerWindow) stage.getScene().getRoot();
-                // Este método lo crearemos ahora mismo en el paso 2
-                win.updateDisassembly(pc, memoryWindow);
+                win.updateDisassembly(pc, memStart, memoryWindow);
             }
         }
+
+        // 3. Actualizar Log de Ejecución (Futura ventana)
+        if (traceData != null && openWindows.containsKey("Trace Log")) {
+            Stage stage = openWindows.get("Trace Log"); // Recuperamos el Stage correcto
+
+            if (stage.getScene() != null && stage.getScene().getRoot() instanceof TraceLogWindow) {
+                // Hacemos el casting a la clase correcta: TraceLogWindow
+                TraceLogWindow win = (TraceLogWindow) stage.getScene().getRoot();
+
+                win.updateTrace(traceData, memoryWindow);
+                System.out.println("📦 Recibido Trace Log de " + traceData.length + " bytes");
+            }
+        }
+
     }
 
     public void updateMemoryView(int address, byte[] data) {

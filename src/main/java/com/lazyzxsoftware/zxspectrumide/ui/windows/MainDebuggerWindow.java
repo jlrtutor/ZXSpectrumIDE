@@ -2,167 +2,125 @@ package com.lazyzxsoftware.zxspectrumide.ui.windows;
 
 import com.lazyzxsoftware.zxspectrumide.managers.WindowManager;
 import com.lazyzxsoftware.zxspectrumide.utils.Z80Disassembler;
+import com.lazyzxsoftware.zxspectrumide.utils.Z80Disassembler.Instruction;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 public class MainDebuggerWindow extends BorderPane {
 
-    private TableView<Z80Disassembler.Instruction> table;
-    private ToolBar toolBar;
-
-    // Cache para no desensamblar a lo loco
-    private byte[] lastMemorySnapshot = new byte[0];
-    private ObservableList<Z80Disassembler.Instruction> instructionsCache = FXCollections.observableArrayList();
-    private boolean autoScroll = true; // Checkbox para "Seguir PC"
+    private final ListView<Instruction> listView;
+    private final CheckBox chkFollowPC;
+    private int currentPC = -1;
 
     public MainDebuggerWindow() {
-        initUI();
-    }
+        setPadding(new Insets(10));
 
-    private void initUI() {
-        // --- 1. BARRA DE HERRAMIENTAS ---
-        toolBar = new ToolBar();
-        Button btnResume = createButton("▶", "Continuar (F5)", "resume");
-        Button btnPause = createButton("⏸", "Pausar (Break)", "pause");
-        Button btnStepInto = createButton("⤵", "Paso a paso (F11)", "step-into");
+        // --- TOOLBAR SUPERIOR (Botones + Checkbox) ---
+        HBox toolbar = new HBox(10);
+        toolbar.setPadding(new Insets(0, 0, 10, 0));
+        toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        CheckBox chkFollow = new CheckBox("Seguir PC");
-        chkFollow.setSelected(true);
-        chkFollow.selectedProperty().addListener((obs, old, val) -> autoScroll = val);
+        // 1. Botones de Control
+        Button btnResume = new Button("▶ Continuar");
+        btnResume.setStyle("-fx-base: #2E7D32; -fx-text-fill: white;"); // Verde
+        btnResume.setOnAction(e -> WindowManager.getInstance().getEmulatorWebView().resumeEmulator());
 
-        toolBar.getItems().addAll(btnResume, btnPause, new Separator(), btnStepInto, new Separator(), chkFollow);
+        Button btnPause = new Button("⏸ Pausar");
+        btnPause.setStyle("-fx-base: #C62828; -fx-text-fill: white;"); // Rojo
+        btnPause.setOnAction(e -> WindowManager.getInstance().getEmulatorWebView().pauseEmulator());
 
-        // --- 2. TABLA ---
-        table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        table.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 13px;");
+        Button btnStep = new Button("⏯ Paso");
+        btnStep.setStyle("-fx-base: #1565C0; -fx-text-fill: white;"); // Azul
+        btnStep.setOnAction(e -> WindowManager.getInstance().getEmulatorWebView().stepInto());
 
-        // Columna Address
-        TableColumn<Z80Disassembler.Instruction, String> colAddr = new TableColumn<>("Addr");
-        colAddr.setCellValueFactory(data -> new SimpleStringProperty(String.format("%04X", data.getValue().address)));
-        colAddr.setPrefWidth(60);
-        colAddr.setMaxWidth(80);
-        colAddr.setStyle("-fx-text-fill: #569cd6; -fx-alignment: CENTER-RIGHT;");
+        // Espaciador para empujar el checkbox a la derecha (opcional) o mantener todo junto
+        Region spacer = new Region();
+        // HBox.setHgrow(spacer, Priority.ALWAYS); // Descomentar si quieres el checkbox a la derecha del todo
 
-        // Columna Bytes
-        TableColumn<Z80Disassembler.Instruction, String> colBytes = new TableColumn<>("Bytes");
-        colBytes.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().bytesStr));
-        colBytes.setPrefWidth(100);
-        colBytes.setMaxWidth(120);
-        colBytes.setStyle("-fx-text-fill: #808080;");
+        // 2. Checkbox "Seguir PC"
+        chkFollowPC = new CheckBox("Seguir PC");
+        chkFollowPC.setSelected(true);
+        chkFollowPC.setStyle("-fx-text-fill: #D4D4D4;");
 
-        // Columna Mnemónico
-        TableColumn<Z80Disassembler.Instruction, String> colInstr = new TableColumn<>("Instruction");
-        colInstr.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().mnemonic));
-        colInstr.setStyle("-fx-text-fill: #d4d4d4; -fx-font-weight: bold;");
+        // Añadir todo al toolbar
+        toolbar.getChildren().addAll(btnResume, btnPause, btnStep, new Separator(javafx.geometry.Orientation.VERTICAL), chkFollowPC);
+        setTop(toolbar);
 
-        table.getColumns().addAll(colAddr, colBytes, colInstr);
+        // --- LISTA CENTRAL ---
+        listView = new ListView<>();
+        listView.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 13px;");
+        setCenter(listView);
 
-        // Asignamos la lista observable vacía inicial
-        table.setItems(instructionsCache);
-
-        // --- ROW FACTORY: Resaltar PC ---
-        table.setRowFactory(tv -> new TableRow<>() {
+        // Renderizado de celdas (Resaltado del PC)
+        listView.setCellFactory(lv -> new ListCell<>() {
             @Override
-            protected void updateItem(Z80Disassembler.Instruction item, boolean empty) {
+            protected void updateItem(Instruction item, boolean empty) {
                 super.updateItem(item, empty);
-                if (item == null || empty) {
+                if (empty || item == null) {
+                    setText(null);
                     setStyle("");
                 } else {
-                    // Verificamos si esta fila es el PC actual
-                    // Usamos el "userdata" de la tabla para pasar el PC actual de forma chapucera pero efectiva
-                    // O mejor: comparamos con una variable de clase, pero la RowFactory se refresca asíncrona.
-                    // Para simplificar: La selección nativa de la tabla hará de cursor.
+                    setText(item.toString());
 
-                    if (isSelected()) {
-                        setStyle("-fx-background-color: #264f78; -fx-text-background-color: white;");
+                    // Resaltado de la línea del PC
+                    if (item.address == currentPC) {
+                        // Azul estilo Visual Studio / IntelliJ para línea activa
+                        setStyle("-fx-control-inner-background: #264F78; -fx-background-color: #264F78; -fx-text-fill: white; -fx-font-weight: bold;");
                     } else {
-                        setStyle("");
+                        setStyle("-fx-text-fill: #D4D4D4;"); // Gris claro para el resto
                     }
                 }
             }
         });
-
-        setTop(toolBar);
-        setCenter(table);
     }
 
-    /**
-     * Recibe los datos completos (64KB) y el PC.
-     */
-    public void updateDisassembly(int pc, byte[] memory) {
-        if (memory == null || memory.length == 0) return;
+    public void updateDisassembly(int pc, int memStart, byte[] memory) {
+        this.currentPC = pc;
 
-        Platform.runLater(() -> {
-            boolean memoryChanged = !Arrays.equals(memory, lastMemorySnapshot);
+        // 1. Desensamblar TODA la memoria (0-65535) para permitir scroll libre
+        List<Instruction> instructions = Z80Disassembler.disassemble(memory, memStart, memory.length);
 
-            // 1. Si la memoria cambió, desensamblamos TODO (0000-FFFF)
-            // Esto asegura que podemos hacer scroll hacia atrás.
-            if (memoryChanged) {
-                // Guardamos snapshot
-                lastMemorySnapshot = memory.clone(); // Clonar es importante
+        listView.setItems(FXCollections.observableArrayList(instructions));
 
-                // Desensamblar los 64KB completos (Puede tardar unos ms, pero es aceptable en PC moderno)
-                // Nota: Z80Disassembler.disassemble devuelve una lista.
-                // Pedimos desde 0 hasta 65536 bytes.
-                // OJO: El método original pedía "count" (número de instrucciones).
-                // Vamos a usar una versión "inteligente" o simplemente un bucle grande.
-
-                // Para no bloquear, desensamblamos "suficiente" o todo.
-                // Vamos a desensamblar todo el bloque.
-                List<Z80Disassembler.Instruction> fullList =
-                        Z80Disassembler.disassemble(memory, 0, 32000); // ~32k instrucciones max para 64k bytes
-
-                instructionsCache.setAll(fullList);
-            }
-
-            // 2. Buscar la instrucción que coincide con el PC y seleccionarla
-            if (autoScroll) {
-                scrollToPC(pc);
-            }
-        });
-    }
-
-    private void scrollToPC(int pc) {
-        // Búsqueda lineal rápida (la lista está ordenada por dirección)
-        // Podríamos usar búsqueda binaria para optimizar más.
-        Optional<Z80Disassembler.Instruction> target = instructionsCache.stream()
-                .filter(i -> i.address == pc)
-                .findFirst();
-
-        if (target.isPresent()) {
-            Z80Disassembler.Instruction instr = target.get();
-            table.getSelectionModel().select(instr);
-            table.scrollTo(instr);
-        } else {
-            // Si no encontramos la instrucción exacta (desalineación), buscamos la más cercana
-            // Esto pasa si desensamblamos desde 0000 y el código en 8000 está desalineado por datos.
-            // Para la versión 0.0.7 es aceptable.
-            table.getSelectionModel().clearSelection();
+        // 2. Lógica de Centrado
+        if (chkFollowPC.isSelected()) {
+            scrollToPC(instructions, pc);
         }
     }
 
-    private Button createButton(String text, String tooltip, String id) {
-        Button btn = new Button(text);
-        btn.setTooltip(new Tooltip(tooltip));
-        btn.setOnAction(e -> {
-            var emulator = WindowManager.getInstance().getEmulatorWebView();
-            if (emulator != null) {
-                switch (id) {
-                    case "resume": emulator.resumeEmulator(); break;
-                    case "pause": emulator.pauseEmulator(); break;
-                    case "step-into": emulator.stepInto(); break;
-                }
+    private void scrollToPC(List<Instruction> instructions, int pc) {
+        int pcIndex = -1;
+
+        // Buscar la instrucción que coincide con el PC
+        for (int i = 0; i < instructions.size(); i++) {
+            if (instructions.get(i).address == pc) {
+                pcIndex = i;
+                break;
             }
-        });
-        return btn;
+        }
+
+        if (pcIndex != -1) {
+            listView.getSelectionModel().select(pcIndex);
+
+            // CÁLCULO DE CENTRADO VERTICAL
+            // Intentamos dejar el PC en medio de la vista
+            int itemsInView = 24;
+            int centerOffset = itemsInView / 2;
+            final int targetIndex = Math.max(0, pcIndex - centerOffset);
+
+            Platform.runLater(() -> {
+                listView.scrollTo(targetIndex);
+                listView.requestFocus();
+            });
+        }
     }
 }

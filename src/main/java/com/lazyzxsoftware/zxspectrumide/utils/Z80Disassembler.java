@@ -9,117 +9,154 @@ public class Z80Disassembler {
         public int address;
         public String bytesStr;
         public String mnemonic;
+        public String args;
         public int size;
 
-        public Instruction(int address, String bytesStr, String mnemonic, int size) {
+        public Instruction(int address, String bytesStr, String mnemonic, String args, int size) {
             this.address = address;
             this.bytesStr = bytesStr;
             this.mnemonic = mnemonic;
+            this.args = args;
             this.size = size;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%04X  %-10s  %-4s %s", address, bytesStr, mnemonic, args);
         }
     }
 
-    /**
-     * Desensambla un bloque de bytes comenzando en una dirección dada.
-     * @param memory Array con los bytes de la memoria RAM.
-     * @param startAddress Dirección de memoria donde empieza este bloque (ej: el PC actual).
-     * @param count Número de instrucciones a decodificar.
-     */
     public static List<Instruction> disassemble(byte[] memory, int startAddress, int count) {
         List<Instruction> instructions = new ArrayList<>();
-        int currentAddr = startAddress;
-        int maxBytes = memory.length;
+        int pc = startAddress;
 
         for (int i = 0; i < count; i++) {
-            if (currentAddr >= 65536) break; // Fin de memoria
-
-            // Decodificar una instrucción
-            Instruction instr = decodeInstruction(memory, currentAddr, maxBytes);
+            if (pc >= 65536) break;
+            Instruction instr = decode(memory, pc);
             instructions.add(instr);
-
-            currentAddr += instr.size;
+            pc = (pc + instr.size) & 0xFFFF;
         }
         return instructions;
     }
 
-    private static Instruction decodeInstruction(byte[] mem, int addr, int maxLen) {
-        int b = peek(mem, addr) & 0xFF;
-        int size = 1;
-        String mnemonic = "NOP";
-        String bytesStr = String.format("%02X", b);
+    private static Instruction decode(byte[] mem, int pc) {
+        int b = peek(mem, pc);
+        int next1 = peek(mem, pc + 1);
+        int next2 = peek(mem, pc + 2);
+        int next3 = peek(mem, pc + 3); // Para instrucciones largas (IX+d)
 
-        // --- LÓGICA DE DECODIFICACIÓN SIMPLIFICADA ---
-        // Aquí añadiremos los opcodes. Esto es un subconjunto básico.
-        // Una implementación completa requiere miles de líneas (tablas de opcodes).
-        // Usaremos un "fallback" inteligente para lo que no reconozcamos.
+        // Lógica simplificada pero extensible para detectar prefijos
+        if (b == 0xED) return decodeED(mem, pc, next1);
+        if (b == 0xCB) return decodeCB(mem, pc, next1);
+        if (b == 0xDD) return decodeIndex(mem, pc, "IX");
+        if (b == 0xFD) return decodeIndex(mem, pc, "IY");
+
+        // Instrucciones base (Ejemplos comunes, habría que rellenar la tabla completa)
+        String mnem = "NOP";
+        String args = "";
+        int size = 1;
 
         switch (b) {
-            case 0x00: mnemonic = "NOP"; break;
-            case 0x76: mnemonic = "HALT"; break;
-            case 0xC9: mnemonic = "RET"; break;
-            case 0xF3: mnemonic = "DI"; break;
-            case 0xFB: mnemonic = "EI"; break;
+            case 0x00: mnem = "NOP"; break;
+            case 0x76: mnem = "HALT"; break;
+            case 0xF3: mnem = "DI"; break;
+            case 0xFB: mnem = "EI"; break;
+            case 0xC9: mnem = "RET"; break;
 
-            // Cargas de 8 bits (LD r, n)
-            case 0x3E: mnemonic = "LD A, " + arg8(mem, addr+1); size=2; break;
-            case 0x06: mnemonic = "LD B, " + arg8(mem, addr+1); size=2; break;
-            case 0x0E: mnemonic = "LD C, " + arg8(mem, addr+1); size=2; break;
+            // Cargas inmediatas 8-bit
+            case 0x3E: mnem = "LD"; args = "A," + hex8(next1); size = 2; break;
+            case 0x06: mnem = "LD"; args = "B," + hex8(next1); size = 2; break;
+            // ... (añadir resto de LD r,n)
 
-            // Saltos relativos (JR)
-            case 0x18: mnemonic = "JR " + relAddr(addr, peek(mem, addr+1)); size=2; break;
-            case 0x20: mnemonic = "JR NZ, " + relAddr(addr, peek(mem, addr+1)); size=2; break;
-            case 0x28: mnemonic = "JR Z, " + relAddr(addr, peek(mem, addr+1)); size=2; break;
-            case 0x10: mnemonic = "DJNZ " + relAddr(addr, peek(mem, addr+1)); size=2; break;
+            // Saltos relativos
+            case 0x18: mnem = "JR"; args = rel(pc, 2, next1); size = 2; break;
+            case 0x20: mnem = "JR"; args = "NZ," + rel(pc, 2, next1); size = 2; break;
+            case 0x28: mnem = "JR"; args = "Z," + rel(pc, 2, next1); size = 2; break;
+            case 0x10: mnem = "DJNZ"; args = rel(pc, 2, next1); size = 2; break;
 
-            // Saltos absolutos (JP, CALL)
-            case 0xC3: mnemonic = "JP " + arg16(mem, addr+1); size=3; break;
-            case 0xCD: mnemonic = "CALL " + arg16(mem, addr+1); size=3; break;
+            // Saltos absolutos
+            case 0xC3: mnem = "JP"; args = hex16(next2, next1); size = 3; break;
+            case 0xCD: mnem = "CALL"; args = hex16(next2, next1); size = 3; break;
 
-            // Salidas (OUT)
-            case 0xD3: mnemonic = "OUT (" + arg8(mem, addr+1) + "), A"; size=2; break;
+            // ALU A, n
+            case 0xC6: mnem = "ADD"; args = "A," + hex8(next1); size = 2; break;
+            case 0xD6: mnem = "SUB"; args = hex8(next1); size = 2; break;
+            case 0xE6: mnem = "AND"; args = hex8(next1); size = 2; break;
+            case 0xF6: mnem = "OR"; args = hex8(next1); size = 2; break;
+            case 0xFE: mnem = "CP"; args = hex8(next1); size = 2; break;
 
-            // Prefijo extendido ED (ejemplos)
-            case 0xED:
-                int b2 = peek(mem, addr+1) & 0xFF;
-                size = 2;
-                bytesStr += String.format(" %02X", b2);
-                if (b2 == 0xB0) mnemonic = "LDIR";
-                else if (b2 == 0xB8) mnemonic = "LDDR";
-                else mnemonic = "??? (ED " + String.format("%02X", b2) + ")";
-                break;
+            // Salidas
+            case 0xD3: mnem = "OUT"; args = "(" + hex8(next1) + "),A"; size = 2; break;
+            case 0xDB: mnem = "IN"; args = "A,(" + hex8(next1) + ")"; size = 2; break;
 
-            // Por defecto: mostrar DB (Define Byte) si no lo conocemos
             default:
-                mnemonic = "DB " + String.format("#%02X", b);
+                mnem = "DB";
+                args = hex8(b);
                 break;
         }
 
-        // Actualizar string de bytes si la instrucción ocupaba más
-        if (size == 2) bytesStr = String.format("%02X %02X", b, peek(mem, addr+1));
-        if (size == 3) bytesStr = String.format("%02X %02X %02X", b, peek(mem, addr+1), peek(mem, addr+2));
+        // Construir string de bytes para display
+        StringBuilder bytesStr = new StringBuilder(String.format("%02X", b));
+        for(int k=1; k<size; k++) bytesStr.append(String.format(" %02X", peek(mem, pc+k)));
 
-        return new Instruction(addr, bytesStr, mnemonic, size);
+        return new Instruction(pc, bytesStr.toString(), mnem, args, size);
     }
 
-    // --- Helpers de lectura ---
+    // --- Helpers de decodificación ---
 
-    private static byte peek(byte[] mem, int addr) {
-        if (addr >= mem.length) return 0;
-        return mem[addr]; // Asumiendo que 'mem' es un bloque que empieza en 0 o PC relativo
+    private static Instruction decodeED(byte[] mem, int pc, int opcode) {
+        String mnem = "NEG"; // Placeholder
+        String args = "";
+        int size = 2;
+
+        if (opcode == 0xB0) mnem = "LDIR";
+        else if (opcode == 0xB8) mnem = "LDDR";
+        else if (opcode == 0x46) { mnem = "IM"; args = "0"; }
+        else if (opcode == 0x56) { mnem = "IM"; args = "1"; }
+        else if (opcode == 0x5E) { mnem = "IM"; args = "2"; }
+        else { mnem = "???"; args = "(ED " + String.format("%02X", opcode) + ")"; }
+
+        return new Instruction(pc, "ED " + String.format("%02X", opcode), mnem, args, size);
     }
 
-    private static String arg8(byte[] mem, int addr) {
-        return String.format("#%02X", peek(mem, addr));
+    private static Instruction decodeCB(byte[] mem, int pc, int opcode) {
+        // Los opcodes CB son bits/shifts. Ej: CB C7 = SET 0,A
+        return new Instruction(pc, "CB " + String.format("%02X", opcode), "BIT/ROT", "...", 2);
     }
 
-    private static String arg16(byte[] mem, int addr) {
-        int low = peek(mem, addr) & 0xFF;
-        int high = peek(mem, addr+1) & 0xFF;
-        return String.format("#%04X", (high << 8) | low);
+    private static Instruction decodeIndex(byte[] mem, int pc, String reg) {
+        // Manejo básico de IX/IY
+        int op = peek(mem, pc + 1);
+        int disp = peek(mem, pc + 2); // Desplazamiento d
+        int size = 2; // Mínimo
+        String mnem = "???";
+        String args = "";
+
+        if (op == 0x21) { // LD IX, nn
+            mnem = "LD";
+            args = reg + "," + hex16(peek(mem, pc+3), disp);
+            size = 4;
+        } else if (op == 0xE9) { // JP (IX)
+            mnem = "JP"; args = "(" + reg + ")";
+        }
+        // ... (Faltaría implementar la lógica completa de prefijos) ...
+
+        // Construir bytes
+        StringBuilder bytesStr = new StringBuilder(String.format("%02X %02X", peek(mem, pc), op));
+        if (size > 2) bytesStr.append(" ...");
+
+        return new Instruction(pc, bytesStr.toString(), mnem, args, size);
     }
 
-    private static String relAddr(int pcAddr, byte offset) {
-        int target = pcAddr + 2 + offset; // PC + 2 bytes de la instr + offset
+    private static int peek(byte[] mem, int addr) {
+        if (mem == null || addr >= mem.length) return 0;
+        return mem[addr & 0xFFFF] & 0xFF;
+    }
+
+    private static String hex8(int v) { return String.format("#%02X", v); }
+    private static String hex16(int h, int l) { return String.format("#%04X", (h << 8) | l); }
+    private static String rel(int pc, int size, int offset) {
+        int target = pc + size + (byte)offset; // Casting a byte maneja el signo
         return String.format("#%04X", target & 0xFFFF);
     }
 }

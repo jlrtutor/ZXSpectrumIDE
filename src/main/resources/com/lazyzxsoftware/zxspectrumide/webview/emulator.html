@@ -18,8 +18,8 @@
         }
 
         #game-container {
-            width: 640px;
-            height: 480px;
+            width: 320px;
+            height: 240px;
             border: 20px solid #101010;
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
             background: #000;
@@ -79,7 +79,7 @@
             // 2. Le inyectamos la memoria pública si está disponible en las opciones
             if (opts.memory) {
                 z80Instance.memory = opts.memory;
-                // console.log("🔓 Memoria RAM desbloqueada para acceso externo.");
+                console.log("🔓 Memoria RAM desbloqueada para acceso externo.");
             }
             return z80Instance;
         };
@@ -154,76 +154,111 @@
     }
 
     // =========================================================================
-    // 3. HERRAMIENTAS DE DEPURACIÓN (Lectura de Memoria)
+    // 3. SISTEMA DE DEBUG (Event Driven)
     // =========================================================================
 
-    // Función segura para leer un byte gracias al interceptor
-    function safeReadByte(addr) {
-        try {
-            if (emulator && emulator.getZ80 && emulator.getZ80().memory) {
-                return emulator.getZ80().memory.read(addr & 0xFFFF);
-            }
-        } catch (e) {}
-        return 0;
-    }
+    // =========================================================================
+    // 3. SISTEMA DE DEBUG (Event Driven)
+    // =========================================================================
 
-    // A. Llamado periodicamente para actualizar registros y desensamblador
-    function debugTest() {
-        var report = { status: "fail" };
-        try {
-            if (emulator && emulator.getZ80) {
-                var z80 = emulator.getZ80();
-                report.status = "success";
-
-                // Registros principales
-                report.pc = z80.getPC();
-                report.sp = z80.getSP();
-                report.af = z80.getAF();
-                report.bc = z80.getBC();
-                report.de = z80.getDE();
-                report.hl = z80.getHL();
-                report.ix = z80.getIX();
-                report.iy = z80.getIY();
-
-                // Registros alternativos
-                if(z80.getAF_Alt) report.af_ = z80.getAF_Alt();
-                if(z80.getBC_Alt) report.bc_ = z80.getBC_Alt();
-                if(z80.getDE_Alt) report.de_ = z80.getDE_Alt();
-                if(z80.getHL_Alt) report.hl_ = z80.getHL_Alt();
-
-                // --- CAMBIO: EXTRAER TODA LA MEMORIA (64KB) ---
-                // Usamos safeReadByte para evitar errores
-                var memDump = [];
-                // 65536 bytes = 64KB completo
-                for (var i = 0; i < 65536; i++) {
-                    memDump.push(safeReadByte(i));
-                }
-                report.memoryBase64 = window.btoa(String.fromCharCode.apply(null, new Uint8Array(memDump)));
-            }
-        } catch (e) {}
-
-        sendReport(report);
-    }
-
-    // B. Llamado bajo demanda para el Visor de Memoria
-    function readMemoryBlock(address, size) {
-        try {
-            var memDump = [];
-            var safeAddr = Math.max(0, Math.min(65535, address));
-
-            for (var i = 0; i < size; i++) {
-                memDump.push(safeReadByte(safeAddr + i));
-            }
-
-            var b64 = window.btoa(String.fromCharCode.apply(null, new Uint8Array(memDump)));
-
-            if (window.javaApp) {
-                window.javaApp.onMemoryRead(safeAddr, b64);
-            }
-        } catch (e) {
-            if(window.javaApp) window.javaApp.log("Error leyendo bloque memoria: " + e);
+    function setupDebugHooks() {
+        console.log("Entro en setupDebugHooks");
+        if (emulator && emulator.getZ80) {
+            var z80 = emulator.getZ80();
+            z80.setDebugCallback(function(reason, addr) {
+                emulator.stop();
+                console.log("Llamando a notifyJavaPaused");
+                notifyJavaPaused(reason);
+            });
         }
     }
+
+    function notifyJavaPaused(reason) {
+        if (!emulator) return;
+        var z80 = emulator.getZ80();
+
+        var pc = z80.getPC();
+        var memStart = 0;
+        var memSize = 65536;
+        var fullRamB64 = getBase64Memory(memStart, memSize);
+        // --------------------------
+
+        var logData = (typeof z80.getTraceLog === 'function') ? z80.getTraceLog() : null;
+
+        // --- DIAGNÓSTICO ---
+        // 1. Verificar si la función existe
+        if (typeof z80.getTraceLog !== 'function') {
+            alert("ERROR CRÍTICO: z80.getTraceLog no existe. Revisa el min.js");
+            console.error("z80.getTraceLog is undefined");
+            return;
+        }
+
+        console.log("DEBUG: Longitud del Log recuperado: " + (logData ? logData.length : "NULL"));
+        if (!logData) {
+            alert("ERROR: z80.getTraceLog() devolvió vacío/null");
+        }
+        // -------------------
+
+        var state = {
+            reason: reason || "paused",
+            pc: pc,
+            sp: z80.getSP(),
+            af: z80.getAF(), bc: z80.getBC(), de: z80.getDE(), hl: z80.getHL(),
+            ix: z80.getIX(), iy: z80.getIY(),
+            af_: z80.getAF_(), bc_: z80.getBC_(), de_: z80.getDE_(), hl_: z80.getHL_(),
+            im: z80.getIM(), iff1: z80.getIFF1(), iff2: z80.getIFF2(),
+
+            // Enviamos la RAM completa
+            previewMemStart: memStart,
+            previewMem: fullRamB64,
+
+            traceLog: logData
+        };
+
+        if (window.javaApp) {
+            window.javaApp.onEmulatorPaused(JSON.stringify(state));
+        }
+    }
+
+    function getBase64Memory(addr, size) {
+        var bytes = [];
+        var mem = emulator.getZ80().memory;
+        for(var i=0; i<size; i++) bytes.push(mem.read((addr+i)&0xFFFF));
+        return window.btoa(String.fromCharCode.apply(null, new Uint8Array(bytes)));
+    }
+
+    /**
+     * Función llamada desde Java (fetchMemory) para leer un bloque de RAM
+     * bajo demanda y devolverlo asíncronamente.
+     */
+    function readMemoryBlock(addr, size) {
+        if (!emulator) return;
+        // Reutilizamos la función auxiliar que ya tienes
+        var b64 = getBase64Memory(addr, size);
+
+        // Devolvemos el resultado a Java
+        if (window.javaApp) {
+            window.javaApp.onMemoryRead(addr, b64);
+        }
+    }
+
+    // Comandos desde Java
+    function setBreakpoints(addrArray) {
+        if (!emulator) return;
+        var z80 = emulator.getZ80();
+        z80.clearBreakpoints();
+        for (var i=0; i<addrArray.length; i++) {
+            z80.setBreakpoint(addrArray[i], true);
+        }
+        log("Breakpoints actualizados: " + addrArray.length);
+    }
+
+    // Sobrescribimos el startEmulatorWithRom para inyectar los hooks
+    var oldStart = startEmulatorWithRom;
+    startEmulatorWithRom = function(rom) {
+        oldStart(rom);
+        setTimeout(setupDebugHooks, 500); // Dar tiempo a que arranque
+    };
 
     // =========================================================================
     // 4. UTILIDADES
@@ -271,6 +306,25 @@
     window.onerror = function(msg) { error("JS Global: " + msg); };
     window.onload = function() { setTimeout(initBridge, 100); };
 
+    // REDIRECCIÓN DE LOGS: Para ver console.log en IntelliJ
+    (function(){
+        var oldLog = console.log;
+        console.log = function(message) {
+            oldLog.apply(console, arguments);
+            if (window.javaApp) {
+                window.javaApp.log(message); // Enviar a Java
+            }
+        };
+
+        var oldError = console.error;
+        console.error = function(message) {
+            oldError.apply(console, arguments);
+            if (window.javaApp) {
+                // Puedes crear javaApp.error(msg) o usar log con prefijo
+                window.javaApp.log("ERROR: " + message);
+            }
+        };
+    })();
 </script>
 </body>
 </html>

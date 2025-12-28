@@ -15,7 +15,7 @@ public class EmulatorStage extends Stage {
         // Instanciamos nuestro componente web
         emulatorView = new EmulatorWebView();
 
-        Scene scene = new Scene(emulatorView, 700, 550);
+        Scene scene = new Scene(emulatorView, 350, 225);
         setScene(scene);
 
         // Icono
