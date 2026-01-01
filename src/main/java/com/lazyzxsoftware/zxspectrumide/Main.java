@@ -3,6 +3,7 @@ package com.lazyzxsoftware.zxspectrumide;
 import javafx.scene.layout.StackPane;
 import java.nio.file.Files;
 import com.lazyzxsoftware.zxspectrumide.config.ConfigManager;
+import com.lazyzxsoftware.zxspectrumide.emulator.interfaces.SpectrumEmulator;
 import com.lazyzxsoftware.zxspectrumide.editor.CodeEditor;
 import com.lazyzxsoftware.zxspectrumide.editor.FileManager;
 import com.lazyzxsoftware.zxspectrumide.i18n.I18nManager;
@@ -456,7 +457,17 @@ public class Main extends Application {
         MenuItem itemRun = new MenuItem("Compilar y Ejecutar");
         itemRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
         itemRun.setOnAction(e -> compileAndRunCode());
+
         menuTools.getItems().add(itemRun);
+
+        MenuItem spriteEditor = new MenuItem("Editor de Sprites");
+        MenuItem mapEditor = new MenuItem("Editor de mapas");
+        MenuItem soundEditor = new MenuItem("Editor de sonido");
+
+        menuTools.getItems().addAll(new SeparatorMenuItem(),
+                spriteEditor,
+                mapEditor,
+                soundEditor);
 
         // --- 4. MENÚ VENTANAS ---
         Menu menuWindows = new Menu("Ventanas");
@@ -599,7 +610,7 @@ public class Main extends Application {
                     byte[] binaryData = java.nio.file.Files.readAllBytes(tapFile.toPath());
                     Platform.runLater(() -> {
                         WindowManager.getInstance().showEmulator();
-                        var webView = WindowManager.getInstance().getEmulatorWebView();
+                        var webView = WindowManager.getInstance().getEmulator();
                         if (webView != null) {
                             webView.loadProgram(binaryData, finalTapFileName);
                         }

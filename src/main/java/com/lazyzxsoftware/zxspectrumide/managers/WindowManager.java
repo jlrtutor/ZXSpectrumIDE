@@ -1,24 +1,20 @@
 package com.lazyzxsoftware.zxspectrumide.managers;
 
-import com.lazyzxsoftware.zxspectrumide.ui.webview.EmulatorWebView;
+import com.lazyzxsoftware.zxspectrumide.emulator.interfaces.SpectrumEmulator;
+import com.lazyzxsoftware.zxspectrumide.ui.windows.DebugWindowManager;
 import com.lazyzxsoftware.zxspectrumide.ui.windows.EmulatorStage;
 
-/**
- * Gestor centralizado de ventanas para la arquitectura JavaFX.
- * Se asegura de que solo exista una instancia de las ventanas flotantes.
- */
 public class WindowManager {
 
     private static WindowManager instance;
 
-    // Referencia a la ventana del emulador (WebView)
+    // Referencia a la interfaz del emulador (El motor nativo)
+    private SpectrumEmulator emulator;
+
+    // Referencia a la ventana gráfica principal del emulador
     private EmulatorStage emulatorStage;
 
-    private EmulatorWebView emulatorWebView;
-
-    private WindowManager() {
-        // Constructor privado para Singleton
-    }
+    private WindowManager() {}
 
     public static synchronized WindowManager getInstance() {
         if (instance == null) {
@@ -29,49 +25,49 @@ public class WindowManager {
 
     /**
      * Muestra la ventana del emulador. Si no existe, la crea.
-     * Si ya existe pero está oculta, la muestra y la trae al frente.
      */
     public void showEmulator() {
-        // Lazy initialization: solo se crea la primera vez que se pide
         if (emulatorStage == null) {
             emulatorStage = new EmulatorStage();
-            // CAPTURAMOS LA REFERENCIA AQUÍ
         }
 
-        // Si se cerró o estaba oculta, la mostramos
         if (!emulatorStage.isShowing()) {
             emulatorStage.show();
         }
-
-        // Traer al frente por si estaba tapada
         emulatorStage.toFront();
     }
 
     /**
-     * Cierra definitivamente la ventana del emulador (útil al salir de la app).
+     * Cierra la ventana del emulador y detiene la ejecución.
      */
     public void closeEmulator() {
         if (emulatorStage != null) {
             emulatorStage.close();
+            if (emulator != null) {
+                emulator.stop();
+            }
             emulatorStage = null;
         }
     }
 
-    // Setter (llámalo desde donde crees el emulador)
-    public void setEmulatorWebView(EmulatorWebView view) {
-        this.emulatorWebView = view;
+    // --- MÉTODOS DE ACCESO AL NÚCLEO (SpectrumEmulator) ---
+
+    public void setEmulator(SpectrumEmulator emulator) {
+        this.emulator = emulator;
     }
 
+    public SpectrumEmulator getEmulator() {
+        return emulator;
+    }
+
+    // --- DELEGACIÓN DE DEBUG ---
+
     /**
-     * Permite acceder al controlador del emulador (WebView) desde otras partes
-     * de la aplicación (como el Debugger).
+     * Avisa a las herramientas de depuración para que se actualicen.
+     * Soluciona el error de "cannot find symbol registersWindow" delegando
+     * la tarea al manager correcto.
      */
-    public EmulatorWebView getEmulatorWebView() {
-        // Si la ventana del emulador no se ha creado todavía, devolvemos null
-        if (emulatorStage == null) {
-            return null;
-        }
-        // Delegamos en el getter que ya creaste en EmulatorStage
-        return emulatorStage.getEmulatorView();
+    public void refreshDebugger() {
+        DebugWindowManager.getInstance().refreshAllOpenWindows();
     }
 }

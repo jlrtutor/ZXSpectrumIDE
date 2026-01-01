@@ -8,7 +8,7 @@
 
 ## 1. EDITOR DE CÓDIGO Z80 ASSEMBLY
 
-### 1. Editor & Core
+### 1.1. Editor & Core
 - [x] Implementar área de texto con RichTextFX
 - [x] Sistema de pestañas para múltiples archivos (Multi-tab support)
 - [x] Guardar/Abrir archivos .asm
@@ -19,54 +19,47 @@
 
 ### 1.2. Gestión de Proyectos & UI
 - [x] Panel lateral "Explorador de Archivos" (File Tree)
-- [x] Panel lateral colapsable/expandible
 - [x] Flujo de Abrir/Cerrar Proyecto (carpeta raíz)
 - [x] Auto-apertura de `main.asm` al cargar proyecto
 - [ ] Guardar estado del workspace (qué archivos estaban abiertos)
-- [ ] Crear estructura de proyecto .zxproj (configuración)
 
 ### 1.3 Integración con Ensamblador (PASMO)
 - [x] **Compilar y Ejecutar (F5)**
 - [x] Panel de salida de compilación (Consola integrada)
-- [x] Parsear errores de PASMO (Salida básica)
 - [x] Generación de archivo `.tap` con cargador BASIC (`--tapbas`)
-- [x] Gestión de nombres de archivo formato 8.3 (MSDOS)
 - [x] Parsear errores de Pasmo y navegar a la línea (Click-to-Jump)
+- [x] **Corrección**: Fix bug argumentos pasmo y flujos de error.
 - [ ] **Visualización de Símbolos (.symbols)**
-    - [ ] Split View en consola (Log a la izquierda, Símbolos a la derecha)
-    - [ ] Carga automática tras compilación exitosa
 
-### 1.4 Depurador y Emulación (Nueva Arquitectura WebView)
-- [x] **Integración JSSpeccy**
-    - [x] Carga de ROMs 48k
-    - [x] Inyección de TAPs desde Java (Base64)
-    - [x] Auto-arranque (`autoloaders.js`)
+### 1.4 Depurador y Emulación (Arquitectura Nativa Java)
+- [x] **Motor Z80 Nativo**
+    - [x] Implementación Opcodes extendida (IO, Memoria).
+    - [x] Carga de ROMs 48k.
+- [x] **Sistema de Carga (Tape System)**
+    - [x] **ROM Traps**: Carga instantánea interceptando `LD-BYTES`.
+    - [x] **Auto-Load**: Secuencia de tecleo automática `LOAD ""`.
+    - [x] Soporte visual nativo (Bordes parpadeando, mensajes ROM).
+- [x] **Sistema de Video (Pixel Perfect)**
+    - [x] **Scanline Rendering**: Dibujado línea a línea.
+    - [x] Efectos Raster (Barras de colores).
+    - [x] Borde real (320x240).
+    - [x] Timing preciso 50Hz.
 - [x] **Control de Ejecución**
-    - [x] Step (Paso a paso)
-    - [x] Resume / Pause
-    - [x] Reset
+    - [x] Step (Paso a paso).
+    - [x] Resume / Pause.
+    - [x] Reset (Reinicio real con limpieza de memoria).
 - [x] **Visualización de Estado**
-    - [x] Registros principales (AF, BC, DE, HL, PC, SP)
-    - [x] Registros alternativos (Shadow Registers)
-    - [x] Flags (F)
-- [x] **Desensamblador (Disassembly View)**
-    - [x] Decodificar bytes en memoria a mnemónicos Z80
-    - [x] Sincronización visual con el PC actual (Flecha/Resaltado)
-    - [x] Scroll completo de 64KB
-- [x] **Visor de Memoria**
-    - [x] Volcado Hexadecimal
-    - [x] Edición de memoria (Lectura implementada, escritura pendiente)
-- [ ] **Refactorizar Ejecución**
-  - [ ] Eliminar "Run 8000" hardcoded.
-  - [ ] Detectar dirección de inicio automáticamente (usando .symbols).
-  - [ ] Unificar botones de "Run" y "Go to Start".
-  - [x] Eliminar código legacy de ZEsarUX externo (Bridge, Launcher, Settings).
-  - [x] Limpiar configuración obsoleta.
+    - [x] Registros principales y Flags.
+    - [x] Desensamblador sincronizado con PC.
+    - [x] Visor de Memoria (Hex View).
+- [ ] **Pendiente Refactorización**
+    - [x] Eliminar "Run 8000" hardcoded (Solucionado con Tape Loader).
+    - [x] Eliminar botón "Go to Start" (Obsoleto por Auto-Load).
 
 ### 1.5 Gestión de Proyectos
 - [x] Estructura de compilación relativa (`/build` junto al archivo fuente)
 - [ ] Crear nuevo proyecto (Wizard)
-- [x] Árbol de archivos del proyecto
+- [ ] Árbol de archivos del proyecto
 
 ---
 

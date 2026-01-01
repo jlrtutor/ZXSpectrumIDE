@@ -1,48 +1,104 @@
 package com.lazyzxsoftware.zxspectrumide.ui.windows;
 
-import com.lazyzxsoftware.zxspectrumide.ui.webview.EmulatorWebView;
+import com.lazyzxsoftware.zxspectrumide.emulator.impl.Spectrum48k;
+import com.lazyzxsoftware.zxspectrumide.emulator.interfaces.SpectrumEmulator;
+import com.lazyzxsoftware.zxspectrumide.emulator.ui.SpectrumRenderer;
+import com.lazyzxsoftware.zxspectrumide.managers.WindowManager;
+import javafx.animation.AnimationTimer;
 import javafx.scene.Scene;
-import javafx.scene.image.Image;
+import javafx.scene.control.Button;
+import javafx.scene.control.Separator;
+import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 public class EmulatorStage extends Stage {
 
-    private final EmulatorWebView emulatorView;
+    private final SpectrumEmulator emulator;
+    private final SpectrumRenderer renderer;
+    private ImageView screenView;
+    private AnimationTimer displayLoop;
 
     public EmulatorStage() {
-        setTitle("ZX Spectrum Emulation (Web Core)");
+        this.setTitle("ZX Spectrum Emulator (Nativo)");
+        this.emulator = new Spectrum48k();
+        this.renderer = new SpectrumRenderer();
 
-        // Instanciamos nuestro componente web
-        emulatorView = new EmulatorWebView();
+        this.emulator.setOnCpuStop(this::updateDebugWindows);
 
-        Scene scene = new Scene(emulatorView, 350, 225);
-        setScene(scene);
+        initUI();
+        initGameLoop();
+        WindowManager.getInstance().setEmulator(emulator);
 
-        // Icono
-        try {
-            // Nota: Ajusta la ruta si es necesario según tu estructura de carpetas
-            getIcons().add(new Image(getClass().getResourceAsStream("/com/lazyzxsoftware/zxspectrumide/icons/app_icon.png")));
-        } catch (Exception ignored) {}
-
-        // 1. Al cerrar: Solo ocultamos la ventana (no cerramos la app)
-        setOnCloseRequest(event -> {
-            event.consume();
-            hide();
-        });
-
-        // 2. NUEVO: Al abrir la ventana, quitamos el PAUSE automáticamente
-        setOnShown(event -> {
-            System.out.println("🔄 Ventana visible. Reactivando emulador...");
-            if (emulatorView != null) {
-                // Esto llama a 'emulator.start()' en JS, que quita el botón PLAY
-                emulatorView.resumeEmulator();
-                // Opcional: Pedir foco para asegurar que las teclas funcionen
-                emulatorView.requestFocus();
-            }
+        this.setOnCloseRequest(e -> {
+            emulator.stop();
+            if (displayLoop != null) displayLoop.stop();
         });
     }
 
-    public EmulatorWebView getEmulatorView() {
-        return emulatorView;
+    private void initUI() {
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: #202020;");
+
+        // Imagen (Ahora incluye el borde de 320x240)
+        screenView = new ImageView(renderer.getImage());
+        screenView.setFitWidth(640);  // x2 (320 * 2)
+        screenView.setFitHeight(480); // x2 (240 * 2)
+        screenView.setPreserveRatio(true);
+        screenView.setSmooth(false);
+
+        StackPane screenContainer = new StackPane(screenView);
+        // Borde fino gris decorativo del IDE (no del Spectrum)
+        screenContainer.setStyle("-fx-border-color: #444; -fx-border-width: 1;");
+
+        root.setCenter(screenContainer);
+
+        ToolBar toolbar = new ToolBar();
+        Button btnPlay = createButton("mdi2p-play", "Ejecutar / Continuar");
+        btnPlay.setOnAction(e -> emulator.start());
+        Button btnPause = createButton("mdi2p-pause", "Pausar");
+        btnPause.setOnAction(e -> { emulator.pause(); updateDebugWindows(); });
+        Button btnReset = createButton("mdi2r-restart", "Reiniciar");
+        btnReset.setOnAction(e -> { emulator.reset(); updateDebugWindows(); });
+        Button btnStepInto = createButton("mdi2d-debug-step-into", "Paso a paso");
+        btnStepInto.setOnAction(e -> { emulator.step(); updateDebugWindows(); });
+        Button btnStepOver = createButton("mdi2d-debug-step-over", "Saltar instrucción");
+        btnStepOver.setOnAction(e -> { emulator.stepOver(); updateDebugWindows(); });
+
+        toolbar.getItems().addAll(btnPlay, btnPause, btnReset, new Separator(), btnStepInto, btnStepOver);
+        root.setTop(toolbar);
+
+        Scene scene = new Scene(root, 660, 550);
+        this.setScene(scene);
+    }
+
+    private Button createButton(String iconCode, String tooltip) {
+        Button btn = new Button();
+        btn.setGraphic(new FontIcon(iconCode));
+        btn.setTooltip(new Tooltip(tooltip));
+        return btn;
+    }
+
+    private void initGameLoop() {
+        displayLoop = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                // Ya no llamamos a emulator.executeFrame() aquí porque el hilo del emulador va por libre
+
+                // Solo repintamos la pantalla si hay datos
+                if (emulator.getScreenBuffer() != null) {
+                    renderer.paintBuffer(emulator.getScreenBuffer());
+                }
+            }
+        };
+        displayLoop.start();
+    }
+
+    private void updateDebugWindows() {
+        WindowManager.getInstance().refreshDebugger();
     }
 }

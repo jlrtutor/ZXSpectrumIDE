@@ -3,7 +3,12 @@ module com.lazyzxsoftware.zxspectrumide {
     requires javafx.controls;
     requires javafx.fxml;
 
-    // RichTextFX
+    // Si ya no usas WebView, podrías quitar estas dos líneas en el futuro,
+    // pero déjalas por ahora para asegurar que compila si quedó algún rastro.
+    requires javafx.web;
+    requires jdk.jsobject;
+
+    // RichTextFX (Editor de código)
     requires org.fxmisc.richtext;
     requires reactfx;
     requires org.fxmisc.flowless;
@@ -12,22 +17,26 @@ module com.lazyzxsoftware.zxspectrumide {
     // ControlsFX
     requires org.controlsfx.controls;
 
-    // Gson
+    // --- NUEVO: Ikonli (Iconos) ---
+    requires org.kordamp.ikonli.core;
+    requires org.kordamp.ikonli.javafx;
+    requires org.kordamp.ikonli.materialdesign2; // Necesario para los iconos 'mdi2...'
+
+    // Gson (JSON)
     requires com.google.gson;
     requires java.desktop;
-    requires javafx.web;
-    requires jdk.jsobject;
 
     // Exports
     exports com.lazyzxsoftware.zxspectrumide;
 
-    // Opens para Gson (acceso reflectivo)
+    // Opens para Gson
     opens com.lazyzxsoftware.zxspectrumide.config to com.google.gson;
+
+    // Opens para JavaFX FXML
     opens com.lazyzxsoftware.zxspectrumide to javafx.fxml;
 
-    // Opens para i18n (ResourceBundle)
+    // Opens para i18n
     opens com.lazyzxsoftware.zxspectrumide.i18n;
 
-    // Hay que ABRIR el paquete webview para que el navegador pueda llamar a los métodos Java
-    opens com.lazyzxsoftware.zxspectrumide.ui.webview to javafx.web;
+    // NOTA: Hemos eliminado la línea 'opens ...ui.webview' porque borraste esa carpeta.
 }

@@ -39,7 +39,6 @@ public class TraceLogWindow extends BorderPane {
         TableColumn<TraceStep, String> colA = createColumn("A", 40, "white");
         colA.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().aStr));
 
-        // CAMBIO 1: Cabecera simplificada con solo las siglas
         TableColumn<TraceStep, String> colFlags = createColumn("S Z Y H X P N C", 160, "#DCDCAA");
         colFlags.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().flagsStr));
 
@@ -105,18 +104,24 @@ public class TraceLogWindow extends BorderPane {
             if (lastStep != null && lastStep.isSameState(pc, af, bc, de, hl, sp, ix, iy)) {
                 lastStep.incrementCount();
             } else {
-                String mnemonic = "???";
+                String instructionText = "???";
                 if (memory != null && pc < memory.length) {
                     try {
-                        List<Instruction> instructions = Z80Disassembler.disassemble(memory, pc, 1);
+                        // CORRECCIÓN 1: Usar 'disassembleMemory' en lugar de 'disassemble'
+                        // Pedimos solo 1 instrucción
+                        List<Instruction> instructions = Z80Disassembler.disassembleMemory(memory, pc, 1);
+
                         if (!instructions.isEmpty()) {
                             Instruction instr = instructions.get(0);
-                            mnemonic = instr.mnemonic + " " + instr.args;
+                            // CORRECCIÓN 2: Usar 'instr.opcode' que ahora contiene todo el texto (mnemónico + args)
+                            instructionText = instr.opcode;
                         }
-                    } catch (Exception e) { mnemonic = "ERR"; }
+                    } catch (Exception e) {
+                        instructionText = "ERR";
+                    }
                 }
 
-                TraceStep newStep = new TraceStep(stepCounter++, pc, af, bc, de, hl, ix, iy, sp, mnemonic);
+                TraceStep newStep = new TraceStep(stepCounter++, pc, af, bc, de, hl, ix, iy, sp, instructionText);
                 steps.add(newStep);
                 lastStep = newStep;
             }
@@ -145,7 +150,6 @@ public class TraceLogWindow extends BorderPane {
             int f = af & 0xFF;
             this.aStr = String.format("%02X", a);
 
-            // CAMBIO 2: Formato de flags con letras
             this.flagsStr = formatFlags(f);
 
             this.bStr = String.format("%02X", (bc >> 8) & 0xFF);
@@ -159,17 +163,14 @@ public class TraceLogWindow extends BorderPane {
             this.spStr = String.format("%04X", sp);
         }
 
-        // Método actualizado para mostrar letras
         private String formatFlags(int f) {
             char[] names = {'S', 'Z', 'Y', 'H', 'X', 'P', 'N', 'C'};
             StringBuilder sb = new StringBuilder();
 
             for (int i = 7; i >= 0; i--) {
                 boolean bitSet = ((f >> i) & 1) == 1;
-                // Si el bit está activo, pone la letra. Si no, un guion suave.
                 sb.append(bitSet ? names[7-i] : "-");
-
-                if (i > 0) sb.append(" "); // Espaciado
+                if (i > 0) sb.append(" ");
             }
             return sb.toString();
         }

@@ -24,35 +24,34 @@
 - [x] **Integración PASMO**: Compilación automática con generación de `.tap`.
 - [x] **Gestión de Build**: Generación de artefactos en carpeta `build` relativa al fuente.
 - [x] **Compatibilidad**: Generación de nombres de archivo MSDOS (8.3) para soporte nativo del Spectrum.
+- [x] **Corrección Bug**: Solucionado error con argumento `.publics` y gestión de flujos de error.
 
-### Fase 3: Integración de Emulador (Arquitectura Híbrida WebView)
-- [x] **Core JSSpeccy**: Integración de emulador basado en JS mediante `WebView`.
-- [x] **Puente Java-JS**: Comunicación bidireccional para carga de ROMs y control.
-- [x] **Auto-Carga Inteligente**:
-    - Inyección de binarios `.tap` compilados en tiempo real.
-    - Script `autoloaders.js` para ejecución automática (`LOAD ""`).
-- [x] **Estabilidad y Rendimiento**:
-    - Sistema de "Cola de Espera" para evitar condiciones de carrera al arrancar.
-    - Reutilización de instancia del emulador (evita fugas de memoria y zombies).
-    - Auto-resume al mostrar la ventana (eliminación del estado "Pause").
+### Fase 3: Motor de Emulación Nativo (Reemplazo de WebView)
+- [x] **Core Z80 Java Puro**:
+    - Implementación completa de opcodes (incluyendo indocumentados y I/O).
+    - Refactorización a `step()` unificado.
+- [x] **Sistema de Video (ULA)**:
+    - **Scanline Rendering**: Renderizado línea a línea para efectos "raster" precisos.
+    - Buffer de video ampliado (320x240) para soporte real de borde.
+    - Sincronización precisa a **50Hz** (Nano-timing).
+- [x] **Carga Inteligente (Smart Loader)**:
+    - **Tape Traps**: Intercepción de rutina ROM `0x0556` (LD-BYTES).
+    - **Robot Mecanógrafo**: Auto-tecleo de `LOAD ""` tras reinicio.
+    - Carga instantánea conservando mensajes nativos de ROM ("Bytes: ...").
+- [x] **Gestión de Memoria**:
+    - Inicialización correcta de atributos (Pantalla blanca al reset).
+    - Soporte de lectura/escritura completa (RAM/ROM).
 
-### Fase 3.5: Depurador Visual (Enlace Emulador)
+### Fase 3.5: Depurador Visual
 - [x] **Monitorización**: Polling optimizado de registros CPU.
-- [x] **Control**: Botones de ejecución conectados (Resume, Pause, Step).
-- [x] **Visualización**: Ventana de registros (AF, BC, DE, HL...) y Shadow Registers actualizados en tiempo real.
+- [x] **Control**: Botones de ejecución conectados (Resume, Pause, Step, Step Over).
+- [x] **Visualización**: Ventana de registros (AF, BC, DE, HL...) y Shadow Registers.
+- [x] **Desensamblador en Tiempo Real**: Scroll infinito y seguimiento de PC.
+- [x] **Visor de Memoria**: Hex View completo (64KB).
 
-### Fase 4: Herramientas de Depuración Avanzadas
-- [x] **Desensamblador en Tiempo Real**:
-    - Decodificación de instrucciones Z80.
-    - Scroll infinito (0000-FFFF) con caché inteligente.
-    - Seguimiento automático del PC (Auto-scroll).
-- [x] **Visor de Memoria**:
-    - Hex View completo (64KB).
-    - Navegación "Ir a dirección".
-    - Lectura directa de RAM mediante inyección en JSSpeccy (Monkey Patch).
-- [ ] **Breakpoints**: Sistema visual para detener la ejecución en líneas concretas.
 ## 📝 PENDIENTE
 
+- [ ] **Breakpoints**: Sistema visual para detener la ejecución (Backend implementado, falta UI).
 - Fase 5: Editor de sprites (Gráficos y Atributos)
 - Fase 6: Editor de mapas (Tiles)
 - Fase 7: Editor de música (Integración Player)
@@ -64,7 +63,7 @@ La configuración se guarda en: `~/.zxide/config.json`
 ## 🔗 INFORMACIÓN GENERAL
 
 **Dominio del proyecto**: `com.lazyzxsoftware.zxspectrumide`  
-**Versión actual**: 0.0.7-alpha
+**Versión actual**: 0.0.8-alpha
 **JDK**: 17  
 **JavaFX**: 21  
 **Build System**: Maven
