@@ -1,7 +1,7 @@
 package com.lazyzxsoftware.zxspectrumide.emulator.interfaces;
 
 import com.lazyzxsoftware.zxspectrumide.emulator.core.Memory;
-import java.util.function.Consumer;
+import java.io.File;
 
 public interface SpectrumEmulator {
     void start();
@@ -18,14 +18,17 @@ public interface SpectrumEmulator {
     void poke(int address, int value);
     int getRegister(String name);
 
-    // CAMBIO: Ahora obtenemos el buffer de video completo ya pintado por la ULA
+    // VIDEO (Double Buffer)
     int[] getScreenBuffer();
-
-    Memory getMemory(); // Lo mantenemos para el depurador de memoria
     int getBorderColor();
+
+    Memory getMemory();
 
     void loadRom(String path);
     void loadSnapshot(String path);
-    void loadProgram(byte[] data, String name);
+
+    // CAMBIO: Inyectamos el archivo real para imitar a JSpeccy
+    void loadProgram(File tapFile);
+
     void setOnCpuStop(Runnable callback);
 }

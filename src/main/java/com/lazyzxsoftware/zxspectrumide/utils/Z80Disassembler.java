@@ -89,13 +89,21 @@ public class Z80Disassembler {
         // --- PREFIJO EXTENDIDO (ED) ---
         if (b == 0xED) {
             int op = peek(memory, pc + 1);
-            String txt = decodeED(op, memory, pc);
-            String bytes = String.format("ED %02X", op);
-            // Algunas ED tienen operandos (LD (nn), BC etc), ajustamos si necesario
-            // Por simplicidad, la mayoría de ED son 2 bytes, salvo las de memoria
             int size = 2;
-            if ((op & 0xC7) == 0x43) size = 4; // LD (nn), rr (16 bit)
-            if (size == 4) bytes += String.format(" %02X %02X", peek(memory, pc+2), peek(memory, pc+3));
+
+            // Opcodes ED que son cargas de 16 bits con dirección (nn): 4 bytes
+            // 43, 4B, 53, 5B, 63, 6B, 73, 7B
+            if ((op & 0x07) == 0x03 && (op >> 6) == 1) {
+                size = 4;
+            }
+
+            String txt = decodeED(op, memory, pc);
+
+            // Construimos la cadena de bytes incluyendo los 4 bytes para el debugger
+            String bytes = String.format("ED %02X", op);
+            if (size == 4) {
+                bytes += String.format(" %02X %02X", peek(memory, pc + 2), peek(memory, pc + 3));
+            }
 
             return new Instruction(pc, txt, bytes, size);
         }
@@ -152,8 +160,13 @@ public class Z80Disassembler {
                 else if (y == 3) { mnemonic = "JR " + getRelAddr(memory, pc); size = 2; }
                 else if (y >= 4) { mnemonic = "JR " + cc[y-4] + ", " + getRelAddr(memory, pc); size = 2; }
             } else if (z == 1) {
-                if (q == 0) { mnemonic = "LD " + rp[p] + ", " + getNN(memory, pc); size = 3; } // LD rr, nn
-                else        { mnemonic = "ADD " + hlReplace + ", " + rp[p]; } // ADD HL, rr (o IX, rr)
+                if (q == 0) {
+                    // LD rr, nn. Si es indexado y p == 2 (HL), usamos IX o IY
+                    String reg = (isIndex && p == 2) ? indexName : rp[p];
+                    mnemonic = "LD " + reg + ", " + getNN(memory, pc);
+                    size = 3;
+                }
+                else { mnemonic = "ADD " + hlReplace + ", " + rp[p]; }
             } else if (z == 2) {
                 if (q == 0) {
                     if (p == 0) mnemonic = "LD (BC), A";
@@ -188,13 +201,12 @@ public class Z80Disassembler {
         else if (x == 1) {
             if (z == 6 && y == 6) mnemonic = "HALT";
             else {
-                // LD dest, src
-                // Si usamos indexados, tenemos que leer el desplazamiento SI alguno es (HL) -> (IX+d)
-                // Pero Z80 no permite LD (IX+d), (IX+d). Solo uno puede ser memoria.
-                String dest = getRegName(y, isIndex, indexName, memory, pc, false);
-                String src = getRegName(z, isIndex, indexName, memory, pc, false);
+                // Si y es 6 o z es 6, estamos ante un acceso a (IX+d) / (IY+d)
+                boolean isMem = (y == 6 || z == 6);
+                String dest = getRegName(y, isIndex, indexName, memory, pc, isMem);
+                String src = getRegName(z, isIndex, indexName, memory, pc, isMem);
                 mnemonic = "LD " + dest + ", " + src;
-                if (isIndex && (z == 6 || y == 6)) size++; // +d
+                if (isIndex && (z == 6 || y == 6)) size++;
             }
         }
         // BLOQUE 2 (x=2) : ALU A, r
@@ -278,17 +290,29 @@ public class Z80Disassembler {
         return new Instruction(pc, i.opcode, fullBytes, i.size + 1); // +1 por el prefijo
     }
 
-    private static String getRegName(int idx, boolean isIndex, String idxName, byte[] memory, int pc, boolean ignoreD) {
+    // Cambia la lógica de getRegName en Z80Disassembler.java
+    private static String getRegName(int idx, boolean isIndex, String idxName, byte[] memory, int pc, boolean isMemAccess) {
         String[] r = {"B", "C", "D", "E", "H", "L", "(HL)", "A"};
+
         if (!isIndex) return r[idx];
 
-        if (idx == 4) return idxName + "H"; // IXH / IYH
-        if (idx == 5) return idxName + "L"; // IXL / IYL
+        // Si es el índice 6, siempre es (IX+d) o (IY+d)
         if (idx == 6) {
-            // (IX+d)
             int d = peek(memory, pc + 1);
             return "(" + idxName + formatDisplacement(d) + ")";
         }
+
+        // EXCEPCIÓN: Si la instrucción es indexada pero NO estamos accediendo
+        // a los registros H/L internos (índices 4 y 5), o si la instrucción
+        // base ya usa (IX+d), el otro registro debe ser el estándar.
+        if (isMemAccess) {
+            return r[idx]; // Devuelve B, C, D, E, H, L o A sin cambios
+        }
+
+        // Transformación estándar de prefijo para H y L
+        if (idx == 4) return idxName + "H"; // IXH / IYH
+        if (idx == 5) return idxName + "L"; // IXL / IYL
+
         return r[idx];
     }
 
@@ -316,33 +340,46 @@ public class Z80Disassembler {
     }
 
     private static String decodeED(int op, byte[] memory, int pc) {
-        // Bloque ED es complejo, implementamos los comunes del Spectrum
         int x = (op >> 6) & 0x03;
         int y = (op >> 3) & 0x07;
         int z = op & 0x07;
         int p = (y >> 1);
         int q = y & 1;
 
+        String[] regs8 = {"B", "C", "D", "E", "H", "L", "(HL)", "A"};
+        String[] regs16 = {"BC", "DE", "HL", "SP"};
+
         if (x == 1) {
-            if (z == 0) return "IN " + (y!=6?"(C)":"(C)") + ", " + (y==6?"0":new String[]{"B","C","D","E","H","L","(HL)","A"}[y]);
-            if (z == 1) return "OUT (C), " + (y==6?"0":new String[]{"B","C","D","E","H","L","(HL)","A"}[y]);
-            if (z == 2) return (q==0 ? "SBC" : "ADC") + " HL, " + new String[]{"BC","DE","HL","SP"}[p];
-            if (z == 3) return "LD (" + getNN(memory, pc) + "), " + new String[]{"BC","DE","HL","SP"}[p]; // 4 bytes
-            if (z == 4) return "NEG";
-            if (z == 5) return "RETN";
-            if (z == 6) return "IM " + ((y==0||y==4)?0 : (y==2||y==6)?1 : 2);
-            if (z == 7) return "LD I, A"; // Simplificado
+            switch (z) {
+                case 0: return "IN " + regs8[y] + ", (C)";
+                case 1: return "OUT (C), " + regs8[y];
+                case 2: return (q == 0 ? "SBC" : "ADC") + " HL, " + regs16[p];
+                case 3:
+                    // Para ED, nn está en pc+2 (bajo) y pc+3 (alto)
+                    int low = peek(memory, pc + 2);
+                    int high = peek(memory, pc + 3);
+                    int val = (high << 8) | low;
+                    String nn = String.format("0x%04X", val); // Esto generará 0x5CB2
+
+                    String rr = regs16[p];
+                    // q=0 -> LD (nn), rr | q=1 -> LD rr, (nn)
+                    return (q == 0) ? "LD (" + nn + "), " + rr : "LD " + rr + ", (" + nn + ")";
+                case 4: return "NEG";
+                case 5: return "RETN";
+                case 6: return "IM " + ((y == 0 || y == 4) ? 0 : (y == 2 || y == 6) ? 1 : 2);
+                case 7: return (y < 4) ? "LD I, A" : (y < 6 ? "LD R, A" : (y == 6 ? "LD A, I" : "LD A, R"));
+            }
         }
-        if (x == 2) {
-            if (z == 0 && y == 4) return "LDI";
-            if (z == 0 && y == 5) return "LDD";
-            if (z == 0 && y == 6) return "LDIR";
-            if (z == 0 && y == 7) return "LDDR";
-            // ... Otros bloques CPI, CPIR, etc.
-            if (z == 1 && y == 6) return "CPIR";
-            if (z == 1 && y == 7) return "CPDR";
+
+        if (x == 2) { // Instrucciones de bloque (LDIR, CPIR, etc.)
+            String[] blockOps = {"I", "D", "IR", "DR"};
+            if (z <= 3 && y >= 4) {
+                String name = (z == 0 ? "LD" : (z == 1 ? "CP" : (z == 2 ? "IN" : "OUT")));
+                return name + blockOps[y - 4];
+            }
         }
-        return "ED " + String.format("%02X", op);
+
+        return "DB ED, " + String.format("%02X", op);
     }
 
     // --- UTILIDADES ---

@@ -31,10 +31,11 @@ public class PasmoCompiler implements Compiler {
             pasmoPath = "pasmo"; // Asume que está en el PATH del sistema
         }
 
-        // 1. Calcular nombres base
+        // 1. Calcular nombre base
         String baseName = sourceFile.getName().replaceFirst("[.][^.]+$", "");
 
-        // 2. Calcular nombre "limpio" para la cabecera del Spectrum (Max 8 chars)
+        // 2. Calcular nombre "limpio" para la cabecera del Spectrum (MSDOS 8.3)
+        // Max 8 caracteres, Mayúsculas, Sin espacios.
         String tapeName = baseName.toUpperCase()
                 .replace(" ", "")
                 .replace("_", "");
@@ -52,14 +53,16 @@ public class PasmoCompiler implements Compiler {
         String extension = ".tap";
         if ("hex".equals(format)) extension = ".hex";
         if ("bin".equals(format)) extension = ".bin";
+
+        // --- CAMBIO: Usar 'tapeName' (MSDOS 8.3) para el archivo físico ---
+        // Esto asegura compatibilidad total con emuladores y FAT16/32.
+        // Ej: "Mi Juego Increible.asm" -> "MIJUEGOI.tap"
         File outputFile = new File(outputDir, tapeName + extension);
 
         List<String> command = new ArrayList<>();
         command.add(pasmoPath);
 
         // Opciones de formato
-        // --tapbas añade un cargador BASIC automáticamente (Recomendado para juegos)
-        // --tap crea solo el bloque de bytes (requiere LOAD "" CODE manual)
         switch (format) {
             case "tapbas": command.add("--tapbas"); break;
             case "tap":    command.add("--tap"); break;
@@ -68,6 +71,7 @@ public class PasmoCompiler implements Compiler {
             default:       command.add("--tapbas");
         }
 
+        // Nombre interno (Cabecera Spectrum)
         command.add("--name");
         command.add(tapeName);
 
@@ -75,33 +79,26 @@ public class PasmoCompiler implements Compiler {
             command.add("-d");
         }
 
-        // --alocal: Autolocales (etiquetas que empiezan por _ son locales)
-        // Muy útil para no llenar la tabla de símbolos de basura
         command.add("--alocal");
 
         command.add("-I");
         command.add(sourceFile.getParent());
 
-        // ARGUMENTOS POSICIONALES (IMPORTANTE EL ORDEN)
+        // ARGUMENTOS POSICIONALES
         // 1. INPUT
         command.add(sourceFile.getAbsolutePath());
 
-        // 2. OUTPUT
+        // 2. OUTPUT (Nombre físico MSDOS)
         command.add(outputFile.getAbsolutePath());
 
-        // 3. SYMBOL FILE (.symbols)
-        // Pasmo solo acepta UN archivo de símbolos al final
+        // 3. SYMBOL FILE
+        // Los símbolos sí pueden conservar el nombre largo para facilitar el debug en el IDE
         File symbolFile = new File(outputDir, baseName + ".symbols");
         command.add(symbolFile.getAbsolutePath());
-
-        // --- ERROR ANTERIOR: NO AÑADIR .publics AQUÍ ---
-        // Pasmo no soporta un 4º argumento de archivo.
 
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(outputDir);
 
-        // IMPORTANTE: NO redirigir error stream a input stream
-        // Queremos leer stdout y stderr por separado en Main.java
         pb.redirectErrorStream(false);
 
         return pb.start();

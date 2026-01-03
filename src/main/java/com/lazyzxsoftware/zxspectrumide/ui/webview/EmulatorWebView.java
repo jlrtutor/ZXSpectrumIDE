@@ -105,7 +105,7 @@ public class EmulatorWebView extends StackPane {
     public void requestRomLoad() {
         new Thread(() -> {
             try {
-                InputStream is = getClass().getResourceAsStream("/com/lazyzxsoftware/zxspectrumide/webview/roms/48.rom");
+                InputStream is = getClass().getResourceAsStream("/com/lazyzxsoftware/zxspectrumide/webview/roms/48k.rom");
                 if (is != null) {
                     String romBase64 = Base64.getEncoder().encodeToString(is.readAllBytes());
                     is.close();

@@ -24,7 +24,7 @@ public class EmulatorStage extends Stage {
     private AnimationTimer displayLoop;
 
     public EmulatorStage() {
-        this.setTitle("ZX Spectrum Emulator (Nativo)");
+        this.setTitle("ZX Spectrum Emulator (Nativo - Double Buffered)");
         this.emulator = new Spectrum48k();
         this.renderer = new SpectrumRenderer();
 
@@ -52,7 +52,6 @@ public class EmulatorStage extends Stage {
         screenView.setSmooth(false);
 
         StackPane screenContainer = new StackPane(screenView);
-        // Borde fino gris decorativo del IDE (no del Spectrum)
         screenContainer.setStyle("-fx-border-color: #444; -fx-border-width: 1;");
 
         root.setCenter(screenContainer);
@@ -87,11 +86,10 @@ public class EmulatorStage extends Stage {
         displayLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                // Ya no llamamos a emulator.executeFrame() aquí porque el hilo del emulador va por libre
-
-                // Solo repintamos la pantalla si hay datos
-                if (emulator.getScreenBuffer() != null) {
-                    renderer.paintBuffer(emulator.getScreenBuffer());
+                // Obtenemos el buffer seguro (displayBuffer)
+                int[] pixels = emulator.getScreenBuffer();
+                if (pixels != null) {
+                    renderer.paintBuffer(pixels);
                 }
             }
         };
